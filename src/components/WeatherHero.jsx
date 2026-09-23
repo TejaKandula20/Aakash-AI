@@ -5,6 +5,7 @@ import {
   ShieldCheck, Info, Radio, Sparkles, RefreshCw, Activity, Gauge
 } from 'lucide-react';
 import { getLocalizedCondition, getLocalizedWhyItRains } from '../data/weatherData';
+import { getLocalizedAiExplanation } from '../data/translations';
 
 export default function WeatherHero({
   weatherData,
@@ -80,6 +81,7 @@ export default function WeatherHero({
 
   const translatedCondition = getLocalizedCondition(current.condition, currentLang);
   const localWhy = getLocalizedWhyItRains(whyItRains, currentLang) || whyItRains;
+  const aiCards = getLocalizedAiExplanation(selectedPanchayat, current, coarseModelComparison, currentLang, localWhy);
 
   const getSoilMoistureStatus = (moist) => {
     if (moist > 80) {
@@ -146,7 +148,7 @@ export default function WeatherHero({
               </span>
             </div>
             <p className="text-[11px] text-slate-300 mt-1">
-              {t.sourceLabel || "Source"}: IMD-NWP Baseline (25km) + ISRO Bhuvan SRTM 30m Micro-DEM Mesh
+              {t.sourceLabel || "Source"}: {t.sourceSubtitle || "IMD-NWP Baseline (25km) + ISRO Bhuvan SRTM 30m Micro-DEM Mesh"}
             </p>
           </div>
         </div>
@@ -248,7 +250,7 @@ export default function WeatherHero({
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold">
                   <span>{t.expectedRainLabel}: <strong className="text-blue-700 font-black">{current.rainMm} mm</strong></span>
-                  <span className="text-[10px] text-slate-400">Precipitation Chance</span>
+                  <span className="text-[10px] text-slate-400">{t.precipChance || "Precipitation Chance"}</span>
                 </div>
               </div>
 
@@ -377,7 +379,7 @@ export default function WeatherHero({
                 {t.downscalingAuditTitle || "Downscaling Audit"}
               </span>
               <span className="text-[10px] px-2.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 font-mono">
-                IMD 25km vs 1km
+                {t.imdVsDownscaledBadge || "IMD 25km vs 1km"}
               </span>
             </div>
             
@@ -424,7 +426,7 @@ export default function WeatherHero({
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-            <span>SRTM DEM 30m + Gradient Boosting</span>
+            <span>{t.srtmMethodology || "SRTM DEM 30m + Gradient Boosting"}</span>
             <span className="text-amber-400 font-bold">{getErrorReductionLabel()}</span>
           </div>
         </div>

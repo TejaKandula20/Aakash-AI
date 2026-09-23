@@ -16,10 +16,10 @@ export default function PanchayatMap({
 
   // Sub-points within the 1km micro-mesh
   const subPoints = [
-    { id: 'center', name: isTelugu ? "గ్రామ కేంద్రం (పంచాయతీ కార్యాలయం)" : "Gram Panchayat Center", offsetLat: 0, offsetLon: 0, elevDelta: 0, desc: isTelugu ? "ప్రధాన నివాస ప్రాంతం" : "Main Habitation Area" },
-    { id: 'north-farm', name: isTelugu ? "ఉత్తర వ్యవసాయ క్షేత్రాలు" : "North Agricultural Fields", offsetLat: 0.006, offsetLon: 0.004, elevDelta: -8, desc: isTelugu ? "పల్లపు వరి చేలు (ముంపు అవకాశం)" : "Lowland Paddy (Drainage Prone)" },
-    { id: 'east-ridge', name: isTelugu ? "తూర్పు కొండ ప్రాంతం" : "East Upland Ridge", offsetLat: -0.005, offsetLon: 0.007, elevDelta: 24, desc: isTelugu ? "మెట్ట పంటల గట్లు" : "Highland Crop Terraces" },
-    { id: 'south-basin', name: isTelugu ? "దక్షిణ నీటి ప్రవాహ కాలువ" : "South Natural Drainage Stream", offsetLat: -0.007, offsetLon: -0.003, elevDelta: -14, desc: isTelugu ? "వరద నీరు ప్రవహించే మార్గం" : "Flash Runoff Channel" }
+    { id: 'center', name: t.gpCentroidLabel || "Gram Panchayat Center", offsetLat: 0, offsetLon: 0, elevDelta: 0, desc: isTelugu ? "ప్రధాన నివాస ప్రాంతం" : "Main Habitation Area" },
+    { id: 'north-farm', name: t.northFarmLabel || "North Agricultural Fields", offsetLat: 0.006, offsetLon: 0.004, elevDelta: -8, desc: isTelugu ? "పల్లపు వరి చేలు (ముంపు అవకాశం)" : "Lowland Paddy (Drainage Prone)" },
+    { id: 'east-ridge', name: t.eastRidgeLabel || "East Upland Ridge", offsetLat: -0.005, offsetLon: 0.007, elevDelta: 24, desc: isTelugu ? "మెట్ట పంటల గట్లు" : "Highland Crop Terraces" },
+    { id: 'south-basin', name: t.drainageBasinLabel || "South Natural Drainage Stream", offsetLat: -0.007, offsetLon: -0.003, elevDelta: -14, desc: isTelugu ? "వరద నీరు ప్రవహించే మార్గం" : "Flash Runoff Channel" }
   ];
 
   const activeInspectPoint = selectedSubPoint 
@@ -41,16 +41,14 @@ export default function PanchayatMap({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black text-slate-900">
-                  {isTelugu ? "ఇంటరాక్టివ్ గ్రామ పంచాయతీ వాతావరణ & ముప్పు మ్యాప్" : "Interactive Panchayat Boundary & Weather Risk Map"}
+                  {t.mapHeaderTitle || "Interactive Panchayat Boundary & Weather Risk Map"}
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold border border-indigo-200">
                   1km Micro-Mesh
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isTelugu 
-                  ? `${selectedPanchayat.localName || selectedPanchayat.name} సరిహద్దు పరిధిలోని స్థానిక వాతావరణం & వ్యవసాయ ప్రమాద విశ్లేషణ`
-                  : `Boundary envelope, topographic contours, and downscaled telemetry for ${selectedPanchayat.name}`}
+                {(selectedPanchayat.localName || selectedPanchayat.name) + " - " + (t.mapHeaderSubtitle || "Boundary envelope & downscaled telemetry")}
               </p>
             </div>
           </div>
@@ -67,7 +65,7 @@ export default function PanchayatMap({
             }`}
           >
             <CloudRain className="w-3.5 h-3.5" />
-            <span>{isTelugu ? "వర్షపాతం" : "Rainfall"}</span>
+            <span>{t.rainfallLayer || "Rainfall"}</span>
           </button>
 
           <button
@@ -79,7 +77,7 @@ export default function PanchayatMap({
             }`}
           >
             <Thermometer className="w-3.5 h-3.5" />
-            <span>{isTelugu ? "ఉష్ణోగ్రత" : "Temperature"}</span>
+            <span>{t.temperatureLayer || "Temperature"}</span>
           </button>
 
           <button
@@ -91,7 +89,7 @@ export default function PanchayatMap({
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            <span>{isTelugu ? "వ్యవసాయ ముప్పు" : "Agro Risk"}</span>
+            <span>{t.agroRiskLayer || "Agro Risk"}</span>
           </button>
         </div>
       </div>
@@ -130,13 +128,13 @@ export default function PanchayatMap({
 
             {/* 1. Coarse 25km IMD Boundary Box (Dashed Outlines) */}
             <rect x="30" y="20" width="440" height="280" rx="16" fill="none" stroke="#475569" strokeWidth="1.5" strokeDasharray="6 6" opacity="0.6" />
-            <text x="45" y="42" fill="#94a3b8" fontSize="10" fontFamily="monospace">IMD Coarse NWP Grid Box (25km × 25km)</text>
+            <text x="45" y="42" fill="#94a3b8" fontSize="10" fontFamily="monospace">{t.coarseGridBoxLabel || "IMD Coarse NWP Grid Box (25km × 25km)"}</text>
 
             {/* 2. Topographic Elevation Contours */}
             <path d="M 60 180 Q 150 120 250 160 T 440 140" fill="none" stroke="#334155" strokeWidth="1.2" strokeDasharray="3 3" />
             <path d="M 60 220 Q 180 170 280 200 T 440 190" fill="none" stroke="#334155" strokeWidth="1.2" strokeDasharray="3 3" />
-            <text x="370" y="135" fill="#64748b" fontSize="8" fontFamily="monospace">Contour {selectedPanchayat.elevationMeters + 30}m</text>
-            <text x="370" y="185" fill="#64748b" fontSize="8" fontFamily="monospace">Contour {selectedPanchayat.elevationMeters - 15}m</text>
+            <text x="370" y="135" fill="#64748b" fontSize="8" fontFamily="monospace">{t.contourLabel || "Contour"} {selectedPanchayat.elevationMeters + 30}m</text>
+            <text x="370" y="185" fill="#64748b" fontSize="8" fontFamily="monospace">{t.contourLabel || "Contour"} {selectedPanchayat.elevationMeters - 15}m</text>
 
             {/* 3. Layer Color Fill (Rain, Heat, or Risk) */}
             {activeLayer === 'weather' && (
@@ -163,21 +161,21 @@ export default function PanchayatMap({
             {/* 5. Sub-Points / Habitation Nodes within Panchayat */}
             {/* North farm */}
             <circle cx="290" cy="115" r="5" fill="#10b981" className="cursor-pointer hover:r-7 transition-all" onClick={() => setSelectedSubPoint('north-farm')} />
-            <text x="298" y="118" fill="#cbd5e1" fontSize="9">North Farm (Lowland)</text>
+            <text x="298" y="118" fill="#cbd5e1" fontSize="9">{t.northFarmLabel || "North Farm"}</text>
 
             {/* East ridge */}
             <circle cx="315" cy="180" r="5" fill="#f59e0b" className="cursor-pointer hover:r-7 transition-all" onClick={() => setSelectedSubPoint('east-ridge')} />
-            <text x="323" y="184" fill="#cbd5e1" fontSize="9">East Ridge (+24m)</text>
+            <text x="323" y="184" fill="#cbd5e1" fontSize="9">{t.eastRidgeLabel || "East Ridge"}</text>
 
             {/* South basin */}
             <circle cx="220" cy="210" r="5" fill="#3b82f6" className="cursor-pointer hover:r-7 transition-all" onClick={() => setSelectedSubPoint('south-basin')} />
-            <text x="145" y="222" fill="#cbd5e1" fontSize="9">Drainage Basin</text>
+            <text x="145" y="222" fill="#cbd5e1" fontSize="9">{t.drainageBasinLabel || "Drainage Basin"}</text>
 
             {/* Centroid / GP Office Pin */}
             <g transform="translate(240, 140)" className="cursor-pointer" onClick={() => setSelectedSubPoint('center')}>
               <circle cx="10" cy="10" r="14" fill="#10b981" opacity="0.3" className="animate-ping" />
               <circle cx="10" cy="10" r="8" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
-              <text x="22" y="14" fill="#34d399" fontSize="10" fontWeight="bold">GP Centroid</text>
+              <text x="22" y="14" fill="#34d399" fontSize="10" fontWeight="bold">{t.gpCentroidLabel || "GP Centroid"}</text>
             </g>
           </svg>
 
@@ -200,10 +198,10 @@ export default function PanchayatMap({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                {isTelugu ? "పాయింట్ ఇన్స్పెక్షన్ HUD" : "Micro-Point Telemetry HUD"}
+                {t.pointInspectionHud || "Micro-Point Telemetry HUD"}
               </span>
               <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                Active Zone
+                {t.activeZone || "Active Zone"}
               </span>
             </div>
 
@@ -217,27 +215,27 @@ export default function PanchayatMap({
             {/* Parameters Grid */}
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                <span className="text-slate-600 font-medium">{isTelugu ? "సముద్ర మట్టం ఎత్తు:" : "Point Elevation:"}</span>
+                <span className="text-slate-600 font-medium">{t.pointElevLabel || "Point Elevation:"}</span>
                 <strong className="text-slate-900 font-bold font-mono">{inspectElev}m (DEM)</strong>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                <span className="text-slate-600 font-medium">{isTelugu ? "అంచనా వర్షపాతం:" : "Point Precipitation:"}</span>
+                <span className="text-slate-600 font-medium">{t.pointPrecipLabel || "Point Precipitation:"}</span>
                 <strong className="text-blue-700 font-bold font-mono">{current.rainMm} mm</strong>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                <span className="text-slate-600 font-medium">{isTelugu ? "ఉష్ణోగ్రత:" : "Canopy Temperature:"}</span>
+                <span className="text-slate-600 font-medium">{t.canopyTempLabel || "Canopy Temperature:"}</span>
                 <strong className="text-slate-900 font-bold font-mono">{current.temp}°C</strong>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                <span className="text-slate-600 font-medium">{isTelugu ? "నేల సంతృప్తత:" : "Soil Saturation:"}</span>
+                <span className="text-slate-600 font-medium">{t.pointSoilSatLabel || "Soil Saturation:"}</span>
                 <strong className="text-emerald-700 font-bold font-mono">{current.soilMoisture}%</strong>
               </div>
 
               <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                <span className="text-slate-600 font-medium">{isTelugu ? "ముప్పు స్థాయి:" : "Agricultural Risk:"}</span>
+                <span className="text-slate-600 font-medium">{t.pointRiskLabel || "Agricultural Risk:"}</span>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
                   current.rainMm > 25 || current.soilMoisture > 80 
                     ? 'bg-red-100 text-red-800 border border-red-200' 
@@ -245,7 +243,7 @@ export default function PanchayatMap({
                     ? 'bg-amber-100 text-amber-800 border border-amber-200' 
                     : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                 }`}>
-                  {current.rainMm > 25 ? (isTelugu ? "ముంపు హెచ్చరిక" : "Waterlog Risk") : current.temp > 38 ? (isTelugu ? "ఎండ తీవ్రత" : "Heat Stress") : (isTelugu ? "సాధారణం" : "Normal Conditions")}
+                  {current.rainMm > 25 ? (t.waterlogRiskLabel || "Waterlog Risk") : current.temp > 38 ? (t.heatStressRiskLabel || "Heat Stress") : (t.normalConditionLabel || "Normal Conditions")}
                 </span>
               </div>
             </div>
@@ -258,7 +256,7 @@ export default function PanchayatMap({
               className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
             >
               <Radio className="w-3.5 h-3.5" />
-              <span>{isTelugu ? "ఈ జోన్ అత్యవసర హెచ్చరిక పరీక్షించండి" : "Test Alert for this Zone"}</span>
+              <span>{t.testZoneAlertBtn || "Test Alert for this Zone"}</span>
             </button>
           </div>
         </div>

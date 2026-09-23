@@ -150,11 +150,11 @@ export default function CropAdviser({
                 {t.decisionInputs || "Decision Inputs"}:
               </span>
               <span className="text-slate-300 font-mono text-[11px]">
-                Weather ({weatherData.current.temp}°C, {weatherData.current.rainMm}mm) + Soil ({selectedPanchayat.soilType}, {weatherData.current.soilMoisture}%) + NDVI (0.68) + Crop ({currentCropLocalName}) + Growth Stage ({getStageDisplayName(currentStage)})
+                {t.weatherWord || 'Weather'} ({weatherData.current.temp}°C, {weatherData.current.rainMm}mm) + {t.soilWord || 'Soil'} ({selectedPanchayat.soilType}, {weatherData.current.soilMoisture}%) + NDVI (0.68) + {t.cropWord || 'Crop'} ({currentCropLocalName}) + {t.growthStageWord || 'Growth Stage'} ({getStageDisplayName(currentStage)})
               </span>
             </div>
             <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-500/30">
-              5-Factor Rule Engine
+              {t.fiveFactorEngine || "5-Factor Rule Engine"}
             </span>
           </div>
 
