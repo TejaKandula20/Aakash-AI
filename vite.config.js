@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import https from 'https';
 
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     {

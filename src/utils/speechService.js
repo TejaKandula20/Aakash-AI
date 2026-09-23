@@ -263,11 +263,22 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
   return result.replace(/\s+/g, ' ').trim();
 }
 
-function splitTextIntoChunks(text, maxLen = 170) {
-  text = text.replace(/\s+/g, ' ').trim();
+function sanitizeForSpeech(text) {
+  if (!text) return "";
+  return text
+    .replace(/[*#_~`\[\](){}<>|]/g, " ") // remove markdown & brackets
+    .replace(/https?:\/\/\S+/gi, "")     // remove URLs
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "") // remove emojis
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitTextIntoChunks(text, maxLen = 85) {
+  text = sanitizeForSpeech(text);
   if (text.length <= maxLen) return [text];
 
-  const sentences = text.match(/[^.!?।\n]+[.!?।\n]*/g) || [text];
+  // Split on clause/sentence boundaries: . , ! ? ; : । \n
+  const sentences = text.match(/[^.,!?।;:\n]+[.,!?।;:\n]*/g) || [text];
   const chunks = [];
   let current = "";
 
@@ -404,8 +415,8 @@ class SpeechService {
     // Multilingual phonetic conversion: converts digits, decimals, and units into vernacular words
     const processedText = convertMultilingualPhonetics(text, langCode);
 
-    // Split text into sequential natural chunks for smooth streaming
-    const chunks = splitTextIntoChunks(processedText, 170);
+    // Split text into sequential natural chunks for smooth streaming (85 chars limit for Google TTS)
+    const chunks = splitTextIntoChunks(processedText, 85);
 
     this.isSpeaking = true;
     if (onStart) onStart();
@@ -435,7 +446,7 @@ class SpeechService {
         this.currentAudio = audio;
 
         audio.onended = () => {
-          playNextChunk();
+          setTimeout(() => playNextChunk(), 40);
         };
 
         audio.onerror = (err) => {

@@ -24,6 +24,7 @@ export default function IncomingCallHUD({
   const localized = getLocalizedAlert(activeAlert, currentLang);
   const callScript = localized.callScript;
   const isTelugu = currentLang === 'te';
+  const [speechSpeed, setSpeechSpeed] = useState(0.9); // 0.9 = Clear Indian Cadence, 0.8 = Slow & Articulate
 
   // Manage Ringtone and Auto-countdown on mount / open
   useEffect(() => {
@@ -135,6 +136,17 @@ export default function IncomingCallHUD({
           </button>
         </div>
 
+        {/* Daily Cap & Re-dial Policy Strip */}
+        <div className="bg-slate-950 px-4 py-1.5 border-b border-slate-800 flex items-center justify-between text-[10px] text-slate-300">
+          <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+            <span>🔁</span>
+            <span>{isTelugu ? "ప్రయత్నం 1/3 (మిస్ అయితే పునః డయల్)" : "Attempt 1/3 (Auto Re-dial on Miss)"}</span>
+          </span>
+          <span className="bg-slate-800 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold border border-slate-700">
+            {isTelugu ? "రోజుకు 1 కాల్ మాత్రమే (Daily Cap)" : "1 Batch / Day Cap Active"}
+          </span>
+        </div>
+
         {/* Incoming Call Header */}
         <div className="p-6 text-center">
           
@@ -233,6 +245,31 @@ export default function IncomingCallHUD({
                 <p className="text-xs text-slate-200 leading-relaxed font-sans">
                   {callScript}
                 </p>
+              </div>
+
+              {/* Clarity & Speed Control */}
+              <div className="flex items-center justify-between px-1 pt-2 text-[11px] text-slate-400">
+                <span>{isTelugu ? "ధ్వని స్పష్టత / వేగం:" : "Voice Cadence:"}</span>
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => {
+                      setSpeechSpeed(0.9);
+                      handleReplayVoice();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${speechSpeed === 0.9 ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    {isTelugu ? "స్పష్టమైన వేగం (0.9x)" : "Clear (0.9x)"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSpeechSpeed(0.8);
+                      handleReplayVoice();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${speechSpeed === 0.8 ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    {isTelugu ? "నెమ్మదిగా (0.8x)" : "Slow (0.8x)"}
+                  </button>
+                </div>
               </div>
             </div>
           )}

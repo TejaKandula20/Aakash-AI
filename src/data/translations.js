@@ -11,6 +11,15 @@ export const LANGUAGES = [
 
 export const TRANSLATIONS = {
   en: {
+    farmerRegistryTitle: "Farmer Registry & Alert Coverage",
+    privacyProtectedBadge: "🔒 Privacy Protected",
+    sendPanchayatAlertBtn: "🚨 Send Panchayat-Wide Alert",
+    totalEligibleFarmers: "Total Eligible Farmers",
+    dailyCallCapPolicy: "Daily Call Cap Policy",
+    max1BatchDay: "Max 1 Batch / Day",
+    redialMissed: "3 Re-dials if unanswered",
+    sampleRecordsZeroPii: "View Masked Sample Records (Zero-PII)",
+
     mesh1km: "1km Mesh",
     sourceSubtitle: "IMD-NWP Baseline (25km) + ISRO Bhuvan SRTM 30m Micro-DEM Mesh",
     precipChance: "Precipitation Chance",
@@ -238,6 +247,15 @@ export const TRANSLATIONS = {
     humiditySporeNote: "Relative humidity promotes fungal spore germination."
   },
   te: {
+    farmerRegistryTitle: "రైతు నమోదు & సమాచార పరిధి",
+    privacyProtectedBadge: "🔒 గోప్యత రక్షితం",
+    sendPanchayatAlertBtn: "🚨 పంచాయతీ వ్యాప్తంగా ముందస్తు హెచ్చరిక పంపండి",
+    totalEligibleFarmers: "మొత్తం నమోదైన రైతులు",
+    dailyCallCapPolicy: "రోజువారీ కాల్ పరిమితి",
+    max1BatchDay: "రోజుకు 1 సారి మాత్రమే",
+    redialMissed: "మిస్ అయితే 3 సార్లు పునః ప్రయత్నం",
+    sampleRecordsZeroPii: "నమూనా రైతుల రికార్డులు (మాస్క్ చేయబడిన డేటా)",
+
     mesh1km: "1 కి.మీ గ్రిడ్",
     sourceSubtitle: "IMD-NWP ప్రాంతీయ డేటా (25కి.మీ) + ఇస్రో భువన్ SRTM 30మీ మైక్రో-DEM గ్రిడ్",
     precipChance: "వర్షం పడే అవకాశం",
@@ -466,6 +484,15 @@ export const TRANSLATIONS = {
     humiditySporeNote: "గాలిలో అధిక తేమ వల్ల శిలీంధ్ర తెగుళ్లు వ్యాపించే అవకాశం ఉంది."
   },
   hi: {
+    farmerRegistryTitle: "किसान कवरेज व संपर्क रजिस्ट्री",
+    privacyProtectedBadge: "🔒 गोपनीयता सुरक्षित",
+    sendPanchayatAlertBtn: "🚨 पंचायत-व्यापी आपातकालीन चेतावनी भेजें",
+    totalEligibleFarmers: "कुल पंजीकृत किसान",
+    dailyCallCapPolicy: "दैनिक कॉल सीमा नियम",
+    max1BatchDay: "प्रतिदिन अधिकतम 1 बार",
+    redialMissed: "मिस्ड होने पर 3 बार पुनः प्रयास",
+    sampleRecordsZeroPii: "सुरक्षित नमूना किसान रिकॉर्ड (शून्य-पीआईआई)",
+
     mesh1km: "1 किमी ग्रिड",
     sourceSubtitle: "आईएमडी-एनडब्ल्यूपी आधार (25किमी) + इसरो भुवन एसआरटीएम 30मी सूक्ष्म-डीईएम ग्रिड",
     precipChance: "वर्षा की संभावना",

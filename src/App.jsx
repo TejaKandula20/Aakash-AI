@@ -11,6 +11,7 @@ import MlDownscalingTab from './components/MlDownscalingTab';
 import LanguageModal from './components/LanguageModal';
 import PanchayatMap from './components/PanchayatMap';
 import AlertDeliverySection from './components/AlertDeliverySection';
+import FarmerRegistryModule from './components/FarmerRegistryModule';
 
 import { PANCHAYATS_DATA } from './data/panchayats';
 import { getWeatherDataForPanchayat } from './data/weatherData';
@@ -317,6 +318,14 @@ export default function App() {
               weatherData={weatherData}
               currentLang={currentLang}
               t={t}
+            />
+
+                        {/* Privacy-Preserving Farmer Coverage & Panchayat-Wide Alert Module */}
+            <FarmerRegistryModule
+              selectedPanchayat={selectedPanchayat}
+              currentLang={currentLang}
+              t={t}
+              onTriggerCall={() => handleTriggerAlert(weatherData.current.alertTriggerType || 'waterlogging')}
             />
 
             {/* Alert Delivery Architecture & Multi-Channel Dispatch */}
