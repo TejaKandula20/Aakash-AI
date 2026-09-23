@@ -142,6 +142,22 @@ export default function CropAdviser({
             </div>
           </div>
 
+          {/* Decision Inputs Strip */}
+          <div className="bg-slate-900 text-white px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs border border-slate-800 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 text-[11px]">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                {t.decisionInputs || "Decision Inputs"}:
+              </span>
+              <span className="text-slate-300 font-mono text-[11px]">
+                Weather ({weatherData.current.temp}°C, {weatherData.current.rainMm}mm) + Soil ({selectedPanchayat.soilType}, {weatherData.current.soilMoisture}%) + NDVI (0.68) + Crop ({currentCropLocalName}) + Growth Stage ({getStageDisplayName(currentStage)})
+              </span>
+            </div>
+            <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-500/30">
+              5-Factor Rule Engine
+            </span>
+          </div>
+
           {/* Actionable Agro-Advisory Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
             
@@ -199,21 +215,24 @@ export default function CropAdviser({
               </div>
             </div>
 
-            {/* 4. Weather-Triggered Pest/Disease Watch */}
+            {/* 4. Weather-Based Disease Risk Indicator */}
             <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200 space-y-2 shadow-sm">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-rose-600 text-white">
                   <ShieldAlert className="w-4 h-4" />
                 </div>
                 <h4 className="font-extrabold text-rose-950 text-xs sm:text-sm">
-                  {t.diseaseAdvice}
+                  {t.diseaseRiskIndicator || t.diseaseAdvice || "Weather-Based Disease Risk Indicator"}
                 </h4>
               </div>
               <p className="text-slate-700 leading-relaxed text-xs">
                 {localizedAdvisory.current.diseaseWatch}
               </p>
               <div className="text-[11px] text-rose-950 font-semibold bg-rose-100/80 p-2.5 rounded-xl border border-rose-200">
-                🔬 {t.microTrigger || "Microclimate Trigger:"} {weatherData.current.humidity}% {t.relativeHumidity || "Humidity"}. {t.humiditySporeNote || "Humidity promotes spore germination."}
+                🔬 {t.microTrigger || "Microclimate Trigger:"} {weatherData.current.humidity}% {t.relativeHumidity || "Humidity"}. {t.humiditySporeNote || "Elevated humidity and canopy leaf moisture promote fungal spore germination."}
+              </div>
+              <div className="text-[10px] text-slate-600 italic bg-white/80 p-2 rounded-xl border border-rose-200/80">
+                ⚠️ {t.diseaseDisclaimer || "Clarification: Indicates environmental and microclimatic disease risk conditions, not a confirmed plant disease diagnosis. Visual field inspection recommended."}
               </div>
             </div>
 

@@ -9,6 +9,8 @@ import AlertSimulator from './components/AlertSimulator';
 import IncomingCallHUD from './components/IncomingCallHUD';
 import MlDownscalingTab from './components/MlDownscalingTab';
 import LanguageModal from './components/LanguageModal';
+import PanchayatMap from './components/PanchayatMap';
+import AlertDeliverySection from './components/AlertDeliverySection';
 
 import { PANCHAYATS_DATA } from './data/panchayats';
 import { getWeatherDataForPanchayat } from './data/weatherData';
@@ -301,10 +303,28 @@ export default function App() {
               isRefreshing={isRefreshing}
             />
 
+            {/* Interactive Panchayat Boundary & Weather Risk Map */}
+            <PanchayatMap
+              selectedPanchayat={selectedPanchayat}
+              weatherData={weatherData}
+              currentLang={currentLang}
+              t={t}
+              onTriggerAlert={handleTriggerAlert}
+            />
+
             {/* Forecast Horizons: 3-Day Hourly, 1-Week Trends, 1-Month Seasonal */}
             <ForecastTabs
               weatherData={weatherData}
               currentLang={currentLang}
+              t={t}
+            />
+
+            {/* Alert Delivery Architecture & Multi-Channel Dispatch */}
+            <AlertDeliverySection
+              selectedPanchayat={selectedPanchayat}
+              currentLang={currentLang}
+              onTriggerCall={() => handleTriggerAlert(weatherData.current.alertTriggerType || 'waterlogging')}
+              onOpenAlertSimulator={() => setIsAlertsOpen(true)}
               t={t}
             />
 
