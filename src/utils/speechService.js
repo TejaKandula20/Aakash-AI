@@ -453,8 +453,31 @@ class SpeechService {
     this.isSpeaking = true;
     if (onStart) onStart();
 
-    const langPrefix = langCode.split('-')[0].toLowerCase();
-    const processedText = convertMultilingualPhonetics(text, langCode);
+    const BCP47_MAP = {
+      en: 'en-IN',
+      te: 'te-IN',
+      hi: 'hi-IN',
+      ta: 'ta-IN',
+      kn: 'kn-IN',
+      mr: 'mr-IN',
+      pa: 'pa-IN',
+      bn: 'bn-IN'
+    };
+    const resolvedLang = BCP47_MAP[langCode] || langCode || 'en-IN';
+    const langPrefix = resolvedLang.split('-')[0].toLowerCase();
+    const processedText = convertMultilingualPhonetics(text, resolvedLang);
+
+    // If on static hosting like GitHub Pages, /api/tts proxy does not exist. Use Web Speech Synthesis directly for instant speech!
+    const isStaticDeploy = typeof window !== 'undefined' && (
+      window.location.hostname.includes('github.io') ||
+      window.location.protocol === 'file:'
+    );
+
+    if (isStaticDeploy && this.synth) {
+      this.speakViaSpeechSynthesis(processedText, resolvedLang, onStart, onEnd, onError, sessionId);
+      return;
+    }
+
     const chunks = splitTextIntoChunks(processedText, 85);
 
     if (chunks.length === 0) {
@@ -611,9 +634,21 @@ class SpeechService {
       return;
     }
 
+    const BCP47_MAP = {
+      en: 'en-IN',
+      te: 'te-IN',
+      hi: 'hi-IN',
+      ta: 'ta-IN',
+      kn: 'kn-IN',
+      mr: 'mr-IN',
+      pa: 'pa-IN',
+      bn: 'bn-IN'
+    };
+    const targetLang = BCP47_MAP[langCode] || langCode || 'en-IN';
+
     try {
       this.isListening = true;
-      this.recognition.lang = langCode;
+      this.recognition.lang = targetLang;
 
       this.recognition.onresult = (event) => {
         this.isListening = false;

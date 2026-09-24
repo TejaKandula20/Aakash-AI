@@ -92,13 +92,13 @@ export default function FarmerRegistryModule({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black text-slate-900">
-                  {isTelugu ? "రైతు నమోదు & సమాచార పరిధి" : isHindi ? "किसान कवरेज व संपर्क रजिस्ट्री" : "Farmer Registry & Alert Coverage"}
+                  {t.registryTitle || t.farmerRegistryTitle || "Farmer Registry & Alert Coverage"}
                 </h3>
                 
                 {/* Privacy Protected Indicator */}
                 <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200">
                   <Lock className="w-3 h-3 text-blue-600" />
-                  <span>{isTelugu ? "🔒 గోప్యత రక్షితం (Privacy Protected)" : "🔒 Privacy Protected"}</span>
+                  <span>{t.privacyProtected || "🔒 Privacy Protected"}</span>
                 </span>
 
                 {/* Demo Data Tag */}
@@ -127,8 +127,8 @@ export default function FarmerRegistryModule({
               <Radio className={"w-4 h-4 " + (alertSimulationState === 'running' ? 'animate-spin' : 'animate-pulse')} />
               <span>
                 {alertSimulationState === 'running' 
-                  ? (isTelugu ? "హెచ్చరికలు పంపుతోంది..." : "Dispatching Alert...") 
-                  : (isTelugu ? "🚨 పంచాయతీ వ్యాప్తంగా ముందస్తు హెచ్చరిక పంపండి" : "🚨 Admin Broadcast Alert")}
+                  ? (t.dispatchingAlert || "Dispatching Alert...") 
+                  : (t.sendBroadcastAlert || "🚨 Admin Broadcast Alert")}
               </span>
             </button>
           ) : (
@@ -139,12 +139,10 @@ export default function FarmerRegistryModule({
               </span>
               <div>
                 <div className="text-[11px] font-black uppercase tracking-wider text-emerald-800">
-                  {isTelugu ? "ఆటోమేటిక్ అలర్ట్ రక్షణ సక్రియంగా ఉంది" : "Automated AI Alert Sentinel Active"}
+                  {t.autoAlertActive || "Automated AI Alert Sentinel Active"}
                 </div>
                 <div className="text-[10px] text-emerald-700 font-medium">
-                  {isTelugu 
-                    ? "భారీ వర్షం లేదా తుఫాను ముప్పు ఉన్నప్పుడు ఆటోమేటిక్‌గా హెచ్చరికలు పంపబడతాయి" 
-                    : "Alerts dispatch automatically when heavy weather risk is detected"}
+                  {t.alertLockNotice || "Alerts dispatch automatically when heavy weather risk is detected"}
                 </div>
               </div>
             </div>
@@ -157,12 +155,12 @@ export default function FarmerRegistryModule({
         {/* Metric 1: Total Registered Demo Farmers */}
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
           <span className="text-[11px] font-bold text-slate-600 block mb-0.5">
-            {isTelugu ? "మొత్తం నమోదైన రైతులు" : "Total Eligible Farmers"}
+            {t.totalFarmers || t.totalEligibleFarmers || "Total Eligible Farmers"}
           </span>
           <p className="text-xl font-black text-slate-900 flex items-baseline gap-1.5">
             {totalEligible}
             <span className="text-[11px] font-normal text-emerald-700 font-bold">
-              {isTelugu ? "రైతులు" : "Demo"}
+              {t.demoTag || "Demo"}
             </span>
           </p>
           <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -173,40 +171,40 @@ export default function FarmerRegistryModule({
         {/* Metric 2: Voice + SMS Preference */}
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
           <span className="text-[11px] font-bold text-slate-600 block mb-0.5">
-            {isTelugu ? "వాయిస్ + SMS రెండూ" : "Voice + SMS Channel"}
+            {t.voiceSmsChannel || "Voice + SMS Channel"}
           </span>
           <p className="text-xl font-black text-purple-900">
             {channelDistribution.both}
           </p>
           <span className="text-[10px] text-purple-700 font-semibold block mt-0.5">
-            65% {isTelugu ? "రైతుల ఎంపిక" : "Multi-Channel"}
+            {t.multiChannelPref || "65% Multi-Channel"}
           </span>
         </div>
 
         {/* Metric 3: Voice Only */}
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
           <span className="text-[11px] font-bold text-slate-600 block mb-0.5">
-            {isTelugu ? "స్వయంచాలక వాయిస్ కాల్" : "Voice Call Only (IVR)"}
+            {t.voiceCallOnly || "Voice Call Only (IVR)"}
           </span>
           <p className="text-xl font-black text-emerald-800">
             {channelDistribution.voiceOnly}
           </p>
           <span className="text-[10px] text-emerald-700 font-semibold block mt-0.5">
-            {isTelugu ? "ఫీచర్ ఫోన్ రైతులు" : "Feature Phone Priority"}
+            {t.featurePhonePriority || "Feature Phone Priority"}
           </span>
         </div>
 
         {/* Metric 4: Daily Calling Cap Policy */}
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
           <span className="text-[11px] font-bold text-slate-600 block mb-0.5">
-            {isTelugu ? "రోజువారీ కాల్ పరిమితి" : "Daily Call Cap Policy"}
+            {t.dailyCapPolicy || t.dailyCallCapPolicy || "Daily Call Cap Policy"}
           </span>
           <p className="text-xs font-black text-slate-900 mt-1 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>{isTelugu ? "రోజుకు 1 సారి మాత్రమే" : "Max 1 Batch / Day"}</span>
+            <span>{t.max1Batch || t.max1BatchDay || "Max 1 Batch / Day"}</span>
           </p>
           <span className="text-[10px] text-slate-500 block mt-1 leading-tight">
-            {isTelugu ? "మిస్ అయితే 3 సార్లు పునః ప్రయత్నం" : "3 Re-dials if unanswered"}
+            {t.redialPolicy || t.redialMissed || "3 Re-dials if unanswered"}
           </span>
         </div>
       </div>
@@ -238,7 +236,7 @@ export default function FarmerRegistryModule({
 
           {/* Workflow Ribbon */}
           <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="font-bold text-slate-300">{isTelugu ? "సరఫరా మార్గం:" : "Workflow:"}</span>
+            <span className="font-bold text-slate-300">{t.workflowLabel || "Workflow:"}</span>
             <span>AI Risk Detection</span> →
             <span className="text-emerald-300 font-bold">{selectedPanchayat.name}</span> →
             <span>Protected Registry</span> →
@@ -250,32 +248,32 @@ export default function FarmerRegistryModule({
           {deliveryStats && (
             <div className="pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-6 gap-2.5 text-center text-xs">
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-slate-400 block">{isTelugu ? "లక్ష్యం" : "Total Targeted"}</span>
+                <span className="text-[10px] text-slate-400 block">{t.totalTargeted || "Total Targeted"}</span>
                 <strong className="text-sm text-white font-mono">{deliveryStats.targeted}</strong>
               </div>
 
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-blue-400 block">{isTelugu ? "SMS పంపబడింది" : "SMS Sent"}</span>
+                <span className="text-[10px] text-blue-400 block">{t.smsSent || "SMS Sent"}</span>
                 <strong className="text-sm text-blue-300 font-mono">{deliveryStats.smsSent}</strong>
               </div>
 
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-rose-400 block">{isTelugu ? "SMS విఫలం" : "SMS Failed"}</span>
+                <span className="text-[10px] text-rose-400 block">{t.smsFailed || "SMS Failed"}</span>
                 <strong className="text-sm text-rose-300 font-mono">{deliveryStats.smsFailed}</strong>
               </div>
 
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-amber-400 block">{isTelugu ? "కాల్స్ ప్రారంభం" : "Calls Initiated"}</span>
+                <span className="text-[10px] text-amber-400 block">{t.callsInitiated || "Calls Initiated"}</span>
                 <strong className="text-sm text-amber-300 font-mono">{deliveryStats.callsInitiated}</strong>
               </div>
 
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-emerald-400 block">{isTelugu ? "కాల్ మాట్లాడారు" : "Calls Answered"}</span>
+                <span className="text-[10px] text-emerald-400 block">{t.callsAnswered || "Calls Answered"}</span>
                 <strong className="text-sm text-emerald-300 font-mono">{deliveryStats.callsAnswered}</strong>
               </div>
 
               <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                <span className="text-[10px] text-amber-300 block">{isTelugu ? "మిస్డ్ కాల్స్ (రీ-డయల్)" : "Unanswered (Retry)"}</span>
+                <span className="text-[10px] text-amber-300 block">{t.unansweredRetry || "Unanswered (Retry)"}</span>
                 <strong className="text-sm text-amber-300 font-mono">{deliveryStats.callsUnanswered}</strong>
               </div>
             </div>
@@ -289,7 +287,7 @@ export default function FarmerRegistryModule({
                 className="text-xs text-slate-300 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700"
               >
                 <RefreshCw className="w-3 h-3" />
-                <span>{isTelugu ? "రీసెట్ చేయండి" : "Reset Simulation"}</span>
+                <span>{t.resetSimulation || "Reset Simulation"}</span>
               </button>
             </div>
           )}
@@ -304,7 +302,7 @@ export default function FarmerRegistryModule({
         >
           <EyeOff className="w-3.5 h-3.5 text-slate-400" />
           <span>
-            {isTelugu ? "నమూనా రైతుల రికార్డులు (మాస్క్ చేయబడిన డేటా)" : "View Masked Sample Records (Zero-PII)"}
+            {t.viewMaskedRecords || t.sampleRecordsZeroPii || "View Masked Sample Records (Zero-PII)"}
           </span>
           {showSampleDrawer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
@@ -321,11 +319,11 @@ export default function FarmerRegistryModule({
             <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
               <tr>
                 <th className="p-2.5">Farmer ID</th>
-                <th className="p-2.5">{isTelugu ? "పేరు (రక్షితం)" : "Masked Name"}</th>
-                <th className="p-2.5">{isTelugu ? "ఫోన్ నంబర్" : "Masked Phone"}</th>
-                <th className="p-2.5">{isTelugu ? "పంట" : "Primary Crop"}</th>
-                <th className="p-2.5">{isTelugu ? "నోటిఫికేషన్ మార్గం" : "Alert Channel"}</th>
-                <th className="p-2.5">{isTelugu ? "రోజువారీ పరిమితి" : "Daily Policy Status"}</th>
+                <th className="p-2.5">{t.maskedName || "Masked Name"}</th>
+                <th className="p-2.5">{t.maskedPhone || "Masked Phone"}</th>
+                <th className="p-2.5">{t.primaryCrop || "Primary Crop"}</th>
+                <th className="p-2.5">{t.alertChannel || "Alert Channel"}</th>
+                <th className="p-2.5">{t.dailyPolicyStatus || "Daily Policy Status"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-600">
@@ -355,9 +353,7 @@ export default function FarmerRegistryModule({
       {/* Mandatory Prototype Disclaimer */}
       <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 leading-relaxed">
         <p>
-          ⚖️ <strong>{isTelugu ? "ప్రోటోటైప్ నిబంధన:" : "Prototype Notice:"}</strong> {isTelugu 
-            ? "ఇది ప్రోటోటైప్ ప్రదర్శన కోసం రూపొందించిన నమూనా సమాచారం మాత్రమే. ఎటువంటి ఆధార్ లేదా ప్రభుత్వ డేటాబేస్ అనుసంధానించబడలేదు. వాస్తవ వ్యవస్థలో అమలు చేయడానికి అధీకృత అనుమతులు మరియు సమాచార సమ్మతి అవసరం."
-            : "Sample data for prototype demonstration only. Production deployment would require authorized data access, applicable permissions, consent and approved communication services."}
+          ⚖️ {t.prototypeDisclaimer || "Sample data for prototype demonstration only. Production deployment would require authorized data access, applicable permissions, consent and approved communication services."}
         </p>
       </div>
 

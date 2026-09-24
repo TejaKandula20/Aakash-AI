@@ -22,16 +22,14 @@ export default function AlertDeliverySection({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base sm:text-lg font-black text-white">
-                {isTelugu ? "అత్యవసర హెచ్చరికల సరఫరా వ్యవస్థ (Alert Delivery Pipeline)" : "Alert Delivery Architecture & Multi-Channel Dispatch"}
+                {t.pipelineTitle || "Alert Delivery Architecture & Multi-Channel Dispatch"}
               </h3>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
                 {t.autonomousBadge || "Autonomous"}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isTelugu 
-                ? "AI ముప్పు గుర్తింపు నుండి గ్రామీణ రైతు ఫోన్ వరకు అత్యవసర సమాచార ప్రసార మార్గం"
-                : "From AI edge risk detection directly to the farmer's mobile in under 90 seconds"}
+              {t.pipelineSubtitle || "When localized telemetry crosses hazard thresholds, the autonomous multi-channel delivery pipeline triggers automated voice calls (IVR), actionable SMS, and app push notifications:"}
             </p>
           </div>
         </div>

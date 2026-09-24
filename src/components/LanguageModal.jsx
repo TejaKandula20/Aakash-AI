@@ -7,14 +7,22 @@ export default function LanguageModal({
   isOpen,
   onClose,
   currentLang = 'en',
-  onSelectLanguage
+  onSelectLanguage,
+  onSelectLang,
+  onLanguageChange
 }) {
   if (!isOpen) return null;
 
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
 
   const handleLanguageClick = (lang) => {
-    onSelectLanguage(lang.code);
+    const callback = onSelectLanguage || onSelectLang || onLanguageChange;
+    if (callback) {
+      callback(lang.code);
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aakash_preferred_lang', lang.code);
+    }
     
     // Quick confirmation voice feedback
     const sampleConfirmations = {

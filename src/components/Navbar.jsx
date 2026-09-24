@@ -64,17 +64,30 @@ export default function Navbar({
               </button>
             )}
 
-            {/* Language Selector Button */}
+            {/* Quick 1-Click Vernacular Language Switcher */}
+            <div className="flex items-center gap-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-800 border border-slate-200 hover:border-emerald-300 rounded-xl px-2.5 py-1.5 transition-all shadow-sm">
+              <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
+              <select
+                value={currentLang}
+                onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+                className="bg-transparent text-xs sm:text-sm font-black text-slate-800 hover:text-emerald-800 focus:outline-none cursor-pointer pr-1"
+                aria-label="Select Display Language"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code} className="bg-white text-slate-900 font-bold py-1">
+                    {l.nativeName} ({l.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Language Modal Trigger Button */}
             <button
               onClick={onOpenLanguageModal}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 transition-all shadow-sm"
-              title="Click to change display language"
+              className="hidden lg:flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-all"
+              title="Open full audio language dialog"
             >
-              <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="hidden sm:inline">{t.languageLabel || 'Language:'}</span>
-              <span className="font-extrabold text-emerald-700">
-                {LANGUAGES.find(l => l.code === currentLang)?.nativeName || 'English'}
-              </span>
+              <span>{t.more || 'More...'}</span>
             </button>
 
             {/* Voice Assistant Button */}

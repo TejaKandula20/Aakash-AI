@@ -27,13 +27,32 @@ import { TRANSLATIONS, LANGUAGES } from './data/translations';
 import { Mic, PhoneCall, Sparkles, ShieldCheck, Globe, Check, ShieldAlert, BellRing, LogIn, UserCheck } from 'lucide-react';
 
 export default function App() {
-  // Current language: Default to English with instant switching to Telugu, Hindi, etc.
-  const [currentLang, setCurrentLang] = useState('en');
+  // Current language: Read from localStorage or user profile, default to 'en'
+  const [currentLang, setCurrentLang] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aakash_preferred_lang');
+      if (saved && ['en', 'te', 'hi', 'ta', 'mr', 'kn', 'pa', 'bn'].includes(saved)) {
+        return saved;
+      }
+    }
+    return apiService.user?.preferredLanguage || 'en';
+  });
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState(() => apiService.user);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
+
+  const handleLanguageChange = useCallback((newLang) => {
+    if (!newLang) return;
+    setCurrentLang(newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aakash_preferred_lang', newLang);
+    }
+    if (currentUser) {
+      currentUser.preferredLanguage = newLang;
+    }
+  }, [currentUser]);
 
   // Selected Panchayat state
   const [selectedPanchayat, setSelectedPanchayat] = useState(() => {
@@ -57,8 +76,13 @@ export default function App() {
   const [streamTick, setStreamTick] = useState(0);
   const [liveHourlyForecast, setLiveHourlyForecast] = useState(null);
 
-  // Translation dictionary
-  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  // Translation dictionary with strict English fallback so no key is ever missing or undefined
+  const t = useMemo(() => {
+    return {
+      ...TRANSLATIONS.en,
+      ...(TRANSLATIONS[currentLang] || {})
+    };
+  }, [currentLang]);
 
   // Global Audio Unlock Listener (resumes AudioContext & Speech on first user interaction)
   useEffect(() => {
@@ -253,6 +277,9 @@ export default function App() {
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
+    if (user.preferredLanguage && ['en', 'te', 'hi', 'ta', 'mr', 'kn', 'pa', 'bn'].includes(user.preferredLanguage)) {
+      handleLanguageChange(user.preferredLanguage);
+    }
     if (user.role === 'admin') {
       setIsAdminView(true);
     } else {
@@ -276,7 +303,8 @@ export default function App() {
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
         currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
+        onLanguageChange={handleLanguageChange}
+        t={t}
       />
     );
   }
@@ -290,7 +318,7 @@ export default function App() {
       {/* Universal Top Navigation */}
       <Navbar
         currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
+        onLanguageChange={handleLanguageChange}
         onOpenLanguageModal={() => setIsLangModalOpen(true)}
         t={t}
         onOpenVoice={() => setIsVoiceOpen(true)}
@@ -338,14 +366,10 @@ export default function App() {
                   </div>
                   <div>
                     <span className="font-black text-slate-900 block">
-                      {currentLang === 'te' 
-                        ? `మీరు ప్రస్తుతం ${selectedPanchayat.localName || selectedPanchayat.name} వాతావరణం పరిశీలిస్తున్నారు`
-                        : `Viewing Weather Forecast for ${selectedPanchayat.name}`}
+                      {t.viewingOtherPanchayat || 'Viewing Weather Forecast for'} {selectedPanchayat.localName || selectedPanchayat.name}
                     </span>
                     <span className="text-xs text-amber-800">
-                      {currentLang === 'te'
-                        ? `గమనిక: మీ ఆటోమేటిక్ అత్యవసర ఫోన్ కాల్ అలర్ట్లు మీ రిజిస్టర్డ్ పంచాయతీ (${registeredPanchayat.localName || registeredPanchayat.name}) కొరకే చురుకుగా ఉంటాయి.`
-                        : `Note: Severe weather automated phone calls & SMS alerts remain strictly locked to your registered location (${registeredPanchayat.name}).`}
+                      {t.alertLockNotice || 'Note: Severe weather automated phone calls & SMS alerts remain strictly locked to your registered location'} ({registeredPanchayat.localName || registeredPanchayat.name}).
                     </span>
                   </div>
                 </div>
@@ -354,7 +378,7 @@ export default function App() {
                   onClick={() => setSelectedPanchayat(registeredPanchayat)}
                   className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shrink-0 self-start sm:self-auto transition-all shadow-sm"
                 >
-                  {currentLang === 'te' ? '↩️ నా రిజిస్టర్డ్ పంచాయతీకి వెళ్ళండి' : '↩️ Return to My Alert Hub'}
+                  {t.returnToAlertHub || '↩️ Return to My Alert Hub'}
                 </button>
               </div>
             )}
@@ -364,13 +388,11 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    {currentLang === 'te' 
-                      ? 'రాష్ట్రవ్యాప్త వాతావరణ అన్వేషణ (13,326 గ్రామ పంచాయతీలు):' 
-                      : 'Explore Weather Forecast across all 13,326 Gram Panchayats:'}
+                    {t.exploringWeatherPrompt || 'Explore Weather Forecast across all 13,326 Gram Panchayats:'}
                   </span>
                   {selectedPanchayat.id === registeredPanchayat.id && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-                      {currentLang === 'te' ? '✓ రిజిస్టర్డ్ అలర్ట్ కేంద్రం' : '✓ Your Registered Alert Hub'}
+                      {t.registeredHubNotice || '✓ Your Registered Alert Hub'}
                     </span>
                   )}
                 </div>
@@ -468,6 +490,7 @@ export default function App() {
         selectedPanchayat={selectedPanchayat}
         weatherData={weatherData}
         currentLang={currentLang}
+        onLanguageChange={handleLanguageChange}
         t={t}
       />
 
@@ -498,7 +521,9 @@ export default function App() {
         isOpen={isLangModalOpen}
         onClose={() => setIsLangModalOpen(false)}
         currentLang={currentLang}
-        onSelectLang={(code) => setCurrentLang(code)}
+        onSelectLanguage={handleLanguageChange}
+        onSelectLang={handleLanguageChange}
+        onLanguageChange={handleLanguageChange}
       />
 
     </div>

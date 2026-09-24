@@ -82,13 +82,13 @@ export default function VoiceAssistantModal({
   };
 
   const currentQueries = sampleQueries[currentLang] || sampleQueries.en;
-  const hasGreetedRef = useRef(false);
+  const lastGreetedLangRef = useRef('');
 
-  // On open, greet the farmer proactively in their selected vernacular language once
+  // On open or language switch, greet the farmer proactively in their selected vernacular language
   useEffect(() => {
     if (isOpen) {
-      if (!hasGreetedRef.current) {
-        hasGreetedRef.current = true;
+      if (lastGreetedLangRef.current !== currentLang) {
+        lastGreetedLangRef.current = currentLang;
         const greeting = t.voiceGreeting;
         setChatHistory([
           {
@@ -106,7 +106,7 @@ export default function VoiceAssistantModal({
         );
       }
     } else {
-      hasGreetedRef.current = false;
+      lastGreetedLangRef.current = '';
       speechService.stop();
       speechService.stopListening();
       setIsSpeaking(false);
@@ -117,7 +117,7 @@ export default function VoiceAssistantModal({
       speechService.stop();
       speechService.stopListening();
     };
-  }, [isOpen]);
+  }, [isOpen, currentLang]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -412,6 +412,9 @@ export default function VoiceAssistantModal({
                 onClick={() => {
                   speechService.stop();
                   if (onLanguageChange) onLanguageChange(l.code);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('aakash_preferred_lang', l.code);
+                  }
                 }}
                 className={`px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0 transition-all ${
                   isSelected

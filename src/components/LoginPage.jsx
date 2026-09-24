@@ -5,7 +5,7 @@ import {
   Globe, Compass, Check, ChevronDown, UserCheck, ShieldAlert
 } from 'lucide-react';
 import { apiService } from '../utils/apiService';
-import { LANGUAGES } from '../data/translations';
+import { LANGUAGES, TRANSLATIONS } from '../data/translations';
 import { 
   getAllDistricts, 
   getMandalsByDistrict, 
@@ -16,13 +16,23 @@ import {
 export default function LoginPage({
   onLoginSuccess,
   currentLang = 'en',
-  onLanguageChange
+  onLanguageChange,
+  t: propT
 }) {
   const [isRegister, setIsRegister] = useState(false);
   const [loginRole, setLoginRole] = useState('user'); // 'user' | 'admin'
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+
+  // Translations dictionary for current language
+  const t = useMemo(() => {
+    return {
+      ...TRANSLATIONS.en,
+      ...(TRANSLATIONS[currentLang] || {}),
+      ...(propT || {})
+    };
+  }, [currentLang, propT]);
 
   // Location selector state for alert registration
   const allDistricts = useMemo(() => getAllDistricts(), []);
@@ -62,12 +72,23 @@ export default function LoginPage({
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const isTelugu = currentLang === 'te';
+  const handleLanguageSelect = (langCode) => {
+    if (onLanguageChange) {
+      onLanguageChange(langCode);
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aakash_preferred_lang', langCode);
+    }
+  };
 
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
     if (!identifier || !password) {
-      setError(isTelugu ? 'దయచేసి ఇమెయిల్ లేదా యూజర్‌నేమ్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' : 'Please enter your email or username and password.');
+      setError(currentLang === 'te' 
+        ? 'దయచేసి ఇమెయిల్ లేదా యూజర్‌నేమ్ మరియు పాస్‌వర్డ్ నమోదు చేయండి.' 
+        : currentLang === 'hi'
+        ? 'कृपया अपना ईमेल या उपयोगकर्ता नाम और पासवर्ड दर्ज करें।'
+        : 'Please enter your email or username and password.');
       return;
     }
 
@@ -87,16 +108,18 @@ export default function LoginPage({
 
       const res = await apiService.login(identifier, password, locationData);
       setSuccessMsg(
-        isTelugu 
-          ? `స్వాగతం ${res.user.username}! ${res.user.role === 'admin' ? 'కమాండ్ సెంటర్‌కు' : selectedPanchayatObj.localName + ' వాతావరణ పోర్టల్‌కు'} మళ్లిస్తున్నాము...`
-          : `Welcome, ${res.user.username}! Redirecting to ${res.user.role === 'admin' ? 'Admin Command Center' : selectedPanchayatObj.name + ' Weather Portal'}...`
+        `${t.appName || 'Aakash AI'}: Welcome, ${res.user.username}! ${res.user.role === 'admin' ? 'Redirecting to Admin Command Center...' : 'Connecting to ' + (selectedPanchayatObj.localName || selectedPanchayatObj.name) + '...'}`
       );
       setTimeout(() => {
         onLoginSuccess(res.user);
       }, 600);
     } catch (err) {
       const msg = (err.message || '').replace(/<[^>]*>?/gm, '');
-      setError(msg || (isTelugu ? 'లాగిన్ విఫలమైంది. వివరాలు తనిఖీ చేయండి.' : 'Login failed. Please verify credentials.'));
+      setError(msg || (currentLang === 'te' 
+        ? 'లాగిన్ విఫలమైంది. వివరాలు తనిఖీ చేయండి.' 
+        : currentLang === 'hi'
+        ? 'लॉगिन विफल रहा। कृपया क्रेडेंशियल जांचें।'
+        : 'Login failed. Please verify credentials.'));
     } finally {
       setLoading(false);
     }
@@ -105,7 +128,11 @@ export default function LoginPage({
   const handleRegister = async (e) => {
     if (e) e.preventDefault();
     if (!identifier || !password || !fullName) {
-      setError(isTelugu ? 'దయచేసి అన్ని వివరాలు పూర్తి చేయండి.' : 'Please fill in all required fields.');
+      setError(currentLang === 'te' 
+        ? 'దయచేసి అన్ని వివరాలు పూర్తి చేయండి.' 
+        : currentLang === 'hi'
+        ? 'कृपया सभी आवश्यक फ़ील्ड भरें।'
+        : 'Please fill in all required fields.');
       return;
     }
 
@@ -125,13 +152,13 @@ export default function LoginPage({
         phoneNumber: '+91 98480 •••••',
         preferredLanguage: currentLang
       });
-      setSuccessMsg(isTelugu ? `ఖాతా విజయవంతంగా సృష్టించబడింది! స్వాగతం, ${res.user.username}!` : `Account created! Welcome, ${res.user.username}!`);
+      setSuccessMsg(`Account created! Welcome, ${res.user.username}!`);
       setTimeout(() => {
         onLoginSuccess(res.user);
       }, 600);
     } catch (err) {
       const msg = (err.message || '').replace(/<[^>]*>?/gm, '');
-      setError(msg || (isTelugu ? 'నమోదు విఫలమైంది.' : 'Registration failed.'));
+      setError(msg || 'Registration failed.');
     } finally {
       setLoading(false);
     }
@@ -147,9 +174,9 @@ export default function LoginPage({
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-black tracking-tight text-white">Aakash AI</h1>
+            <h1 className="text-lg font-black tracking-tight text-white">{t.appTitle || 'Aakash AI'}</h1>
             <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
-              {isTelugu ? 'గ్రామ పంచాయతీ వ్యవసాయ వాతావరణ వేదిక' : 'Gram Panchayat Agro-Meteorology'}
+              {t.slogan || 'Gram Panchayat Agro-Meteorology'}
             </p>
           </div>
         </div>
@@ -159,11 +186,12 @@ export default function LoginPage({
           <Globe className="w-3.5 h-3.5 text-emerald-400" />
           <select
             value={currentLang}
-            onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+            onChange={(e) => handleLanguageSelect(e.target.value)}
             className="bg-transparent text-slate-200 font-bold focus:outline-none cursor-pointer"
+            aria-label="Display Language"
           >
             {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code} className="bg-slate-900 text-white">
+              <option key={l.code} value={l.code} className="bg-slate-900 text-white font-semibold">
                 {l.nativeName} ({l.name})
               </option>
             ))}
@@ -180,10 +208,10 @@ export default function LoginPage({
             <ShieldCheck className="w-6 h-6 text-emerald-300" />
           </div>
           <h2 className="text-2xl font-black tracking-tight">
-            {isTelugu ? 'ఆకాశ్ AI ప్రవేశ ద్వారం' : 'Aakash AI Portal'}
+            {t.portalTitle || 'Aakash AI Portal'}
           </h2>
           <p className="text-xs text-emerald-200 mt-1 font-medium">
-            {isTelugu ? 'గ్రామ పంచాయతీ వ్యవసాయ వాతావరణ హెచ్చరికలు & ప్రమాణీకరణ' : 'Gram Panchayat Agro-Meteorological Sentinel & Role-Based Access'}
+            {t.portalSubtitle || 'Gram Panchayat Agro-Meteorological Sentinel & Role-Based Access'}
           </p>
         </div>
 
@@ -192,7 +220,7 @@ export default function LoginPage({
           {/* 1. SELECT LOGIN ROLE: Farmer (User) vs Administrator */}
           <div>
             <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-              {isTelugu ? 'లాగిన్ హోదాను ఎంచుకోండి:' : 'Select Login Role:'}
+              {t.selectLoginRole || 'Select Login Role:'}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -211,10 +239,10 @@ export default function LoginPage({
                 </div>
                 <div>
                   <div className="text-xs font-black text-slate-900">
-                    {isTelugu ? 'రైతు (User)' : 'Farmer (User)'}
+                    {t.farmerRole || 'Farmer (User)'}
                   </div>
                   <div className="text-[10px] text-slate-500 leading-tight">
-                    {isTelugu ? 'వ్యవసాయ హెచ్చరికలు' : 'Alerts & Forecasts'}
+                    {t.farmerRoleDesc || 'Alerts & Forecasts'}
                   </div>
                 </div>
               </button>
@@ -235,10 +263,10 @@ export default function LoginPage({
                 </div>
                 <div>
                   <div className="text-xs font-black text-slate-900">
-                    {isTelugu ? 'అధికారి (Admin)' : 'Officer (Admin)'}
+                    {t.adminRole || 'Officer (Admin)'}
                   </div>
                   <div className="text-[10px] text-slate-500 leading-tight">
-                    {isTelugu ? 'కమాండ్ సెంటర్' : 'State Command'}
+                    {t.adminRoleDesc || 'State Command'}
                   </div>
                 </div>
               </button>
@@ -252,12 +280,10 @@ export default function LoginPage({
                 <MapPin className="w-4 h-4 text-emerald-700 shrink-0" />
                 <div>
                   <div className="text-xs font-black">
-                    {isTelugu ? 'తీవ్ర వాతావరణ అత్యవసర హెచ్చరికల కోసం పంచాయతీ లొకేషన్:' : 'Select Panchayat Location for Emergency Alerts:'}
+                    {t.registeredHubLabel || 'Select Panchayat Location for Emergency Alerts:'}
                   </div>
                   <div className="text-[10px] text-emerald-700">
-                    {isTelugu 
-                      ? 'ఆటోమేటిక్ ఫోన్ కాల్స్ & ఎస్ఎంఎస్ హెచ్చరికలు ఈ లొకేషన్ కోసమే వస్తాయి' 
-                      : 'Severe weather calls & SMS alerts will be strictly registered to this Gram Panchayat'}
+                    {t.alertLockNotice || 'Severe weather calls & SMS alerts will be strictly registered to this Gram Panchayat'}
                   </div>
                 </div>
               </div>
@@ -266,7 +292,7 @@ export default function LoginPage({
                 {/* District */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                    {isTelugu ? 'జిల్లా (District)' : 'District'}
+                    {t.selectDistrictLabel || 'District'}
                   </label>
                   <select
                     value={selectedDistrict}
@@ -282,7 +308,7 @@ export default function LoginPage({
                 {/* Mandal */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                    {isTelugu ? 'మండలం (Mandal)' : 'Mandal'}
+                    {t.selectMandalLabel || 'Mandal'}
                   </label>
                   <select
                     value={selectedMandal}
@@ -298,7 +324,7 @@ export default function LoginPage({
                 {/* Gram Panchayat */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                    {isTelugu ? 'గ్రామ పంచాయతీ (GP)' : 'Gram Panchayat'}
+                    {t.selectPanchayatLabel || 'Gram Panchayat'}
                   </label>
                   <select
                     value={selectedPanchayatId}
@@ -315,7 +341,7 @@ export default function LoginPage({
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 bg-white/80 px-2.5 py-1.5 rounded-xl border border-emerald-200">
                 <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>
-                  {isTelugu ? 'రిజిస్టర్డ్ అలర్ట్ కేంద్రం:' : 'Registered Alert Hub:'}{' '}
+                  {t.registeredHubNotice || 'Registered Alert Hub:'}{' '}
                   <strong>{selectedPanchayatObj?.localName || selectedPanchayatObj?.name}</strong> ({selectedDistrict})
                 </span>
               </div>
@@ -345,7 +371,7 @@ export default function LoginPage({
                 !isRegister ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {isTelugu ? 'లాగిన్ (Sign In)' : 'Sign In'}
+              {t.signInBtn || 'Sign In'}
             </button>
             <button
               onClick={() => { setIsRegister(true); setError(null); }}
@@ -353,7 +379,7 @@ export default function LoginPage({
                 isRegister ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {isTelugu ? 'కొత్త ఖాతా నమోదు (Register)' : 'New Registration'}
+              {t.createAccountBtn || 'New Registration'}
             </button>
           </div>
 
@@ -362,7 +388,7 @@ export default function LoginPage({
             {isRegister && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isTelugu ? 'పూర్తి పేరు (Full Name)' : 'Full Name'}
+                  {t.fullNameLabel || 'Full Name'}
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -371,7 +397,7 @@ export default function LoginPage({
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. V. Ramana Murthy"
+                    placeholder={t.fullNamePlaceholder || 'e.g. Teja Kandula'}
                     className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -380,7 +406,7 @@ export default function LoginPage({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                {isTelugu ? 'ఇమెయిల్ లేదా యూజర్‌నేమ్' : 'Email Address or Username'}
+                {t.identifierLabel || 'Registered Mobile / Username / Email'}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -397,7 +423,7 @@ export default function LoginPage({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                {isTelugu ? 'పాస్‌వర్డ్' : 'Password'}
+                {t.passwordLabel || 'Password'}
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -406,7 +432,7 @@ export default function LoginPage({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t.passwordPlaceholder || '••••••••'}
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -420,14 +446,14 @@ export default function LoginPage({
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{isTelugu ? 'పరిశీలిస్తోంది...' : 'Verifying Credentials...'}</span>
+                  <span>{t.syncing || 'Verifying Credentials...'}</span>
                 </>
               ) : (
                 <>
                   <span>
                     {isRegister 
-                      ? (isTelugu ? 'ఖాతా నమోదు చేయండి' : 'Complete Registration') 
-                      : (isTelugu ? 'పోర్టల్‌లోకి లాగిన్ అవ్వండి' : 'Sign In to Portal')}
+                      ? (t.createAccountBtn || 'Create Account') 
+                      : (t.signInBtn || 'Sign In')}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
@@ -439,15 +465,13 @@ export default function LoginPage({
 
         {/* Footer */}
         <div className="bg-slate-50 p-4 text-center border-t border-slate-100 text-[11px] text-slate-500 font-medium">
-          {isTelugu 
-            ? 'రహస్య టోకెన్ భద్రత & రోజుకు ఒకేసారి అత్యవసర హెచ్చరిక నిబంధన వర్తిస్తుంది' 
-            : 'Protected with cryptographic token verification & once-per-day emergency call sentinel'}
+          {t.prototypeDisclaimer || 'Protected with cryptographic token verification & once-per-day emergency call sentinel'}
         </div>
 
       </div>
 
       <div className="max-w-5xl w-full mx-auto text-center py-2 text-xs text-slate-400">
-        Smart India Hackathon 2024 • Aakash AI Micro-Downscaling Prototype
+        Smart India Hackathon • Aakash AI Micro-Downscaling Prototype
       </div>
 
     </div>
