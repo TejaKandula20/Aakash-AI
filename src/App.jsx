@@ -13,6 +13,7 @@ import PanchayatMap from './components/PanchayatMap';
 import AlertDeliverySection from './components/AlertDeliverySection';
 import FarmerRegistryModule from './components/FarmerRegistryModule';
 import LoginModal from './components/LoginModal';
+import LoginPage from './components/LoginPage';
 import AdminDashboard from './components/AdminDashboard';
 import UserDailyAlertCard from './components/UserDailyAlertCard';
 
@@ -245,6 +246,18 @@ export default function App() {
     setIsAdminView(false);
   };
 
+  // If user is NOT logged in: Render ONLY the dedicated Login Page!
+  if (!currentUser) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        currentLang={currentLang}
+        onLanguageChange={setCurrentLang}
+      />
+    );
+  }
+
+  // Once authenticated: Render accordingly based on role (Admin vs Farmer User)
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       
@@ -268,35 +281,7 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* If user is NOT logged in: Show Authentication Gateway Banner */}
-        {!currentUser && (
-          <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white mb-6 shadow-xl border border-emerald-700/40 relative overflow-hidden">
-            <div className="max-w-2xl relative z-10">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-3">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Production Agro-Meteorological Portal</span>
-              </div>
-              <h2 className="text-xl sm:text-3xl font-black tracking-tight">
-                Secure Gram Panchayat Weather & Emergency Sentinel
-              </h2>
-              <p className="text-xs sm:text-sm text-emerald-100 mt-2 leading-relaxed">
-                Log in to access your assigned Gram Panchayat's hyper-local 1km forecasts, standing crop protection advisories, daily emergency call sentinel, and multilingual voice assistant.
-              </p>
-              
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => setIsLoginOpen(true)}
-                  className="px-5 py-2.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-emerald-400/20 active:scale-95 transition-all"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Sign In / Demo Roles</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 1. ADMIN COMMAND CENTER VIEW */}
+        {/* 1. ADMIN COMMAND CENTER INTERFACE */}
         {currentUser?.role === 'admin' && isAdminView ? (
           <AdminDashboard
             currentUser={currentUser}
@@ -305,23 +290,20 @@ export default function App() {
             currentLang={currentLang}
           />
         ) : (
-          /* 2. USER / VILLAGE DASHBOARD VIEW */
+          /* 2. FARMER / USER INTERFACE */
           <div className="space-y-6">
 
             {/* User Daily Alert Card (Once-Per-Day Status) */}
-            {currentUser && (
-              <UserDailyAlertCard
-                panchayatName={selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}
-                todayDate={dailyAlertStatus?.todayDate || new Date().toISOString().slice(0, 10)}
-                dailyAlertStatus={dailyAlertStatus}
-                onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
-                currentLang={currentLang}
-                t={t}
-              />
-            )}
+            <UserDailyAlertCard
+              panchayatName={selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}
+              todayDate={dailyAlertStatus?.todayDate || new Date().toISOString().slice(0, 10)}
+              dailyAlertStatus={dailyAlertStatus}
+              onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
+              currentLang={currentLang}
+              t={t}
+            />
 
             {/* District -> Mandal -> Panchayat Selector */}
-            {/* If Admin: can inspect any of the 13,326 Panchayats. If User: displays their assigned village */}
             {currentUser?.role === 'admin' ? (
               <PanchayatPicker
                 selectedPanchayat={selectedPanchayat}
@@ -369,10 +351,12 @@ export default function App() {
               isRefreshing={isRefreshing}
             />
 
-            {/* High-Visibility Panchayat Map (OpenStreetMap Leaflet Tiles + 1km Micro-Mesh) */}
+            {/* High-Visibility Panchayat Map (CartoDB Tiles + 1km Micro-Mesh) */}
             <PanchayatMap
               selectedPanchayat={selectedPanchayat}
+              panchayat={selectedPanchayat}
               weatherData={weatherData}
+              weather={weatherData}
               currentLang={currentLang}
               t={t}
               onTriggerAlert={handleTriggerAlert}
@@ -416,7 +400,9 @@ export default function App() {
             {judgeMode && (
               <MlDownscalingTab
                 panchayat={selectedPanchayat}
+                selectedPanchayat={selectedPanchayat}
                 weather={weatherData}
+                weatherData={weatherData}
                 t={t}
                 currentLang={currentLang}
               />
@@ -427,70 +413,44 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 mt-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <p className="font-semibold text-slate-700">
-            Aakash AI • Smart India Hackathon Production Prototype
-          </p>
-          <p className="mt-1">
-            Downscaling 25km IMD Grid to 1km Hyper-Local Resolution for all 13,326 Gram Panchayats in Andhra Pradesh.
-          </p>
-        </div>
-      </footer>
-
-      {/* MODALS & OVERLAYS */}
-
-      {/* 1. Login & Role Authentication Modal */}
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        currentLang={currentLang}
-      />
-
-      {/* 2. Multilingual Voice Assistant Modal (Anti-Echo / Session Guarded) */}
+      {/* Voice Assistant Modal */}
       <VoiceAssistantModal
         isOpen={isVoiceOpen}
         onClose={() => setIsVoiceOpen(false)}
-        currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
         selectedPanchayat={selectedPanchayat}
         weatherData={weatherData}
+        currentLang={currentLang}
         t={t}
       />
 
-      {/* 3. Autonomous Emergency Incoming Call HUD */}
-      <IncomingCallHUD
-        isOpen={isIncomingCallOpen}
-        onClose={() => setIsIncomingCallOpen(false)}
-        selectedPanchayat={selectedPanchayat}
-        currentLang={currentLang}
-        alertId={activeAlertTrigger}
-        onOpenAlertSimulator={() => {
-          setIsIncomingCallOpen(false);
-          setIsAlertsOpen(true);
-        }}
-      />
-
-      {/* 4. Automated Emergency Alerts & Telephony Simulator */}
+      {/* Manual Alert Trigger Simulator */}
       <AlertSimulator
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}
         selectedPanchayat={selectedPanchayat}
+        weatherData={weatherData}
+        onTriggerAlert={handleTriggerAlert}
         currentLang={currentLang}
         t={t}
       />
 
-      {/* 5. Language Selection Modal */}
+      {/* Emergency Call HUD */}
+      <IncomingCallHUD
+        isOpen={isIncomingCallOpen}
+        onClose={() => setIsIncomingCallOpen(false)}
+        panchayat={selectedPanchayat}
+        weatherData={weatherData}
+        alertType={activeAlertTrigger}
+        currentLang={currentLang}
+        t={t}
+      />
+
+      {/* Language Switcher Modal */}
       <LanguageModal
         isOpen={isLangModalOpen}
         onClose={() => setIsLangModalOpen(false)}
         currentLang={currentLang}
-        onSelectLang={(langCode) => {
-          setCurrentLang(langCode);
-          setIsLangModalOpen(false);
-        }}
+        onSelectLang={(code) => setCurrentLang(code)}
       />
 
     </div>

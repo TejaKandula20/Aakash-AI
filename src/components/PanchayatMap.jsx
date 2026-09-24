@@ -84,9 +84,11 @@ export default function PanchayatMap({
         L.control.zoom({ position: 'topright' }).addTo(map);
 
         // OpenStreetMap Tile Layer
-        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // High-performance CartoDB Voyager tiles (100% free, no 403 tile policy blocks)
+        const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
           maxZoom: 19,
-          attribution: '&copy; OpenStreetMap contributors | Aakash AI'
+          subdomains: 'abcd',
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO | Aakash AI'
         }).addTo(map);
 
         tileLayer.on('load', () => setMapLoaded(true));
