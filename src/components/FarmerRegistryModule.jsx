@@ -13,6 +13,7 @@ export default function FarmerRegistryModule({
   weather,
   currentLang = 'en',
   t = {},
+  currentUser,
   onTriggerAlertHUD,
   onTriggerCall
 }) {
@@ -115,20 +116,39 @@ export default function FarmerRegistryModule({
           </div>
         </div>
 
-        {/* Action Button: Send Panchayat-Wide Alert */}
+        {/* Automated AI Alert Sentinel Status */}
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <button
-            onClick={handleSendPanchayatAlert}
-            disabled={alertSimulationState === 'running'}
-            className={"flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50"}
-          >
-            <Radio className={"w-4 h-4 " + (alertSimulationState === 'running' ? 'animate-spin' : 'animate-pulse')} />
-            <span>
-              {alertSimulationState === 'running' 
-                ? (isTelugu ? "హెచ్చరికలు పంపుతోంది..." : "Dispatching Alert...") 
-                : (isTelugu ? "🚨 పంచాయతీ వ్యాప్తంగా ముందస్తు హెచ్చరిక పంపండి" : "🚨 Send Panchayat-Wide Alert")}
-            </span>
-          </button>
+          {currentUser?.role === 'admin' ? (
+            <button
+              onClick={handleSendPanchayatAlert}
+              disabled={alertSimulationState === 'running'}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Radio className={"w-4 h-4 " + (alertSimulationState === 'running' ? 'animate-spin' : 'animate-pulse')} />
+              <span>
+                {alertSimulationState === 'running' 
+                  ? (isTelugu ? "హెచ్చరికలు పంపుతోంది..." : "Dispatching Alert...") 
+                  : (isTelugu ? "🚨 పంచాయతీ వ్యాప్తంగా ముందస్తు హెచ్చరిక పంపండి" : "🚨 Admin Broadcast Alert")}
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 shadow-sm">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <div>
+                <div className="text-[11px] font-black uppercase tracking-wider text-emerald-800">
+                  {isTelugu ? "ఆటోమేటిక్ అలర్ట్ రక్షణ సక్రియంగా ఉంది" : "Automated AI Alert Sentinel Active"}
+                </div>
+                <div className="text-[10px] text-emerald-700 font-medium">
+                  {isTelugu 
+                    ? "భారీ వర్షం లేదా తుఫాను ముప్పు ఉన్నప్పుడు ఆటోమేటిక్‌గా హెచ్చరికలు పంపబడతాయి" 
+                    : "Alerts dispatch automatically when heavy weather risk is detected"}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

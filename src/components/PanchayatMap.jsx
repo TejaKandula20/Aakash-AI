@@ -442,13 +442,10 @@ export default function PanchayatMap({
 
           {/* Bottom Action Note */}
           <div className="mt-4 pt-3 border-t border-slate-200">
-            <button
-              onClick={() => onTriggerAlert(current.alertTriggerType || 'waterlogging')}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
-            >
-              <Radio className="w-3.5 h-3.5" />
-              <span>{t.testZoneAlertBtn || "Test Alert for this Zone"}</span>
-            </button>
+            <div className="w-full py-2 px-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Automated Zone Sentinel: Active</span>
+            </div>
           </div>
         </div>
 

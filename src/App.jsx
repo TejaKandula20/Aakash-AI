@@ -393,6 +393,7 @@ export default function App() {
               weather={weatherData}
               t={t}
               currentLang={currentLang}
+              currentUser={currentUser}
               onTriggerAlertHUD={handleTriggerAlert}
             />
 
