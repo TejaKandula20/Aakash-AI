@@ -9,16 +9,33 @@ import { getLocalizedAiExplanation } from '../data/translations';
 
 export default function WeatherHero({
   weatherData,
+  weather,
   selectedPanchayat,
+  panchayat,
   currentLang = 'en',
-  t,
+  t = {},
   onOpenVoice,
   onTriggerAlert,
   onRefreshTelemetry,
+  onRefresh,
   isRefreshing
 }) {
   const [showWhyItRains, setShowWhyItRains] = useState(false);
-  const { current, whyItRains, coarseModelComparison, telemetryMeta } = weatherData;
+  const data = weatherData || weather || {};
+  const current = data.current || {
+    temp: 31,
+    feelsLike: 33,
+    condition: 'Localized Showers',
+    rainProb: 80,
+    rainMm: 25,
+    humidity: 80,
+    windSpeed: 15,
+    soilMoisture: 75,
+    alertTriggerType: 'waterlogging'
+  };
+  const whyItRains = data.whyItRains || {};
+  const coarseModelComparison = data.coarseModelComparison || {};
+  const telemetryMeta = data.telemetryMeta || {};
 
   const isRainy = current.rainMm > 5 || current.rainProb > 50;
   const isHeat = current.alertTriggerType === 'scorching_sun' || current.temp >= 38;

@@ -3,8 +3,14 @@ import { Cpu, Layers, Mountain, Database, BarChart3, ArrowRight, ShieldCheck, Za
 
 export default function MlDownscalingTab({
   selectedPanchayat,
-  weatherData
+  panchayat,
+  weatherData,
+  weather,
+  t = {},
+  currentLang = 'en'
 }) {
+  const p = selectedPanchayat || panchayat || { name: 'Maredumilli', elevationMeters: 450 };
+  const data = weatherData || weather || {};
   const [selectedFeature, setSelectedFeature] = useState('elevation');
 
   const featureWeights = [
@@ -78,7 +84,7 @@ export default function MlDownscalingTab({
               SIH Technical Jury Evaluation
             </span>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 font-mono text-xs border border-emerald-700">
-              Active Panchayat: {selectedPanchayat.name} ({selectedPanchayat.elevationMeters}m)
+              Active Panchayat: {p.name} ({p.elevationMeters}m)
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">

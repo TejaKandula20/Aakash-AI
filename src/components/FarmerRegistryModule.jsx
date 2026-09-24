@@ -8,21 +8,26 @@ import { getPanchayatFarmerRegistry } from '../data/farmerRegistryData';
 
 export default function FarmerRegistryModule({
   selectedPanchayat,
+  panchayat,
+  weatherData,
+  weather,
   currentLang = 'en',
-  t,
+  t = {},
+  onTriggerAlertHUD,
   onTriggerCall
 }) {
   const [showSampleDrawer, setShowSampleDrawer] = useState(false);
-  const [alertSimulationState, setAlertSimulationState] = useState('idle'); // 'idle' | 'running' | 'completed'
+  const [alertSimulationState, setAlertSimulationState] = useState('idle');
   const [progress, setProgress] = useState(0);
   const [deliveryStats, setDeliveryStats] = useState(null);
 
   const isTelugu = currentLang === 'te';
   const isHindi = currentLang === 'hi';
 
+  const p = selectedPanchayat || panchayat || { name: 'Maredumilli', district: 'Alluri Sitharama Raju' };
   const registryData = getPanchayatFarmerRegistry(
-    selectedPanchayat.name, 
-    selectedPanchayat.district || 'Guntur', 
+    p.name || 'Maredumilli', 
+    p.district || 'Alluri Sitharama Raju', 
     currentLang
   );
 

@@ -42,8 +42,8 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
-    const users = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').all(trimmedEmail);
+    const trimmed = (email || '').trim().toLowerCase();
+    const users = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?').all(trimmed, trimmed);
 
     if (users.length === 0) {
       logAudit(null, trimmedEmail, 'unknown', 'LOGIN_FAILED', 'User not found', req.ip);

@@ -4,11 +4,17 @@ import { getLocalizedCondition } from '../data/weatherData';
 
 export default function ForecastTabs({
   weatherData,
+  weather,
+  selectedPanchayat,
+  panchayat,
   currentLang = 'en',
-  t
+  t = {}
 }) {
-  const [activeTab, setActiveTab] = useState('3day'); // '3day' | '1week' | '1month'
-  const { threeDayHourly, oneWeekForecast, oneMonthOutlook } = weatherData;
+  const [activeTab, setActiveTab] = useState('3day');
+  const data = weatherData || weather || {};
+  const threeDayHourly = data.threeDayHourly || [];
+  const oneWeekForecast = data.oneWeekForecast || [];
+  const oneMonthOutlook = data.oneMonthOutlook || [];
 
   const DAY_MAP = {
     Today: { te: "ఈరోజు", hi: "आज", ta: "இன்று", kn: "ಇಂದು", mr: "आज", pa: "ਅੱਜ", bn: "আজ", en: "Today" },

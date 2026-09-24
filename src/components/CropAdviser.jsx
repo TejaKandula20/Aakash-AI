@@ -4,10 +4,15 @@ import { ALL_CROPS, getLocalizedCropAdvisory, getLocalizedStage } from '../data/
 
 export default function CropAdviser({
   selectedPanchayat,
+  panchayat,
   weatherData,
+  weather,
   currentLang = 'en',
-  t
+  t = {},
+  onVoiceAsk
 }) {
+  const p = selectedPanchayat || panchayat || { name: 'Maredumilli', localName: 'మారేడుమిల్లి', elevationMeters: 450 };
+  const data = weatherData || weather || {};
   // Proactive mode: 'standing' (current crop) vs 'new' (planning cultivation)
   const [advisoryMode, setAdvisoryMode] = useState('standing'); 
   const [selectedCropId, setSelectedCropId] = useState('cotton');
@@ -36,7 +41,7 @@ export default function CropAdviser({
                 {t.cropAdvisoryTitle}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {t.tailoredFor || "Tailored for microclimate and soil conditions of"} {selectedPanchayat.localName || selectedPanchayat.name} ({selectedPanchayat.elevationMeters}m)
+                {t.tailoredFor || "Tailored for microclimate and soil conditions of"} {(p.localName || p.name) || p.name} ({p.elevationMeters}m)
               </p>
             </div>
           </div>
@@ -255,7 +260,7 @@ export default function CropAdviser({
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-bold">
-              {t.newCultivationPlanning} {currentCropLocalName} ({selectedPanchayat.localName || selectedPanchayat.name})
+              {t.newCultivationPlanning} {currentCropLocalName} ({(p.localName || p.name) || p.name})
             </h3>
             <p className="text-xs text-emerald-200 mt-1 leading-relaxed">
               {t.monthlyProjectionTitle || "Monthly Projection"}: {weatherData.oneMonthOutlook.monthlySummary.totalExpectedRainMm}mm {t.expectedRainLabel || "Rain"}, {weatherData.oneMonthOutlook.monthlySummary.rainyDaysCount} {t.rainyDaysLabel || "Rainy Days"} | {selectedPanchayat.soilType}

@@ -16,7 +16,7 @@ import LoginModal from './components/LoginModal';
 import AdminDashboard from './components/AdminDashboard';
 import UserDailyAlertCard from './components/UserDailyAlertCard';
 
-import { PANCHAYATS_DATA } from './data/panchayats';
+import { PANCHAYATS_DATA, resolvePanchayat } from './data/panchayats';
 import { getWeatherDataForPanchayat } from './data/weatherData';
 import { streamingWeatherService } from './utils/streamingWeatherService';
 import { ringtoneService } from './utils/ringtoneService';
@@ -36,11 +36,7 @@ export default function App() {
 
   // Selected Panchayat state
   const [selectedPanchayat, setSelectedPanchayat] = useState(() => {
-    if (apiService.user?.assignedPanchayatId) {
-      const match = PANCHAYATS_DATA.find(p => p.id === apiService.user.assignedPanchayatId);
-      if (match) return match;
-    }
-    return PANCHAYATS_DATA[0]; // Maredumilli default
+    return resolvePanchayat(apiService.user?.assignedPanchayatId);
   });
 
   // Daily alert status from server
@@ -92,8 +88,7 @@ export default function App() {
           } else {
             setIsAdminView(false);
             if (freshUser.assignedPanchayatId) {
-              const match = PANCHAYATS_DATA.find(p => p.id === freshUser.assignedPanchayatId);
-              if (match) setSelectedPanchayat(match);
+              setSelectedPanchayat(resolvePanchayat(freshUser.assignedPanchayatId));
             }
           }
         } catch (e) {
@@ -126,15 +121,16 @@ export default function App() {
 
   // Compute hyper-local downscaled data fused with live telemetry
   const weatherData = useMemo(() => {
-    const base = getWeatherDataForPanchayat(selectedPanchayat);
-    const liveTelemetry = streamingWeatherService.computeDownscaledTelemetry(selectedPanchayat);
+    const panchayat = selectedPanchayat || PANCHAYATS_DATA[0];
+    const base = getWeatherDataForPanchayat(panchayat);
+    const liveTelemetry = streamingWeatherService.computeDownscaledTelemetry(panchayat);
     
     return {
       ...base,
-      telemetryMeta: liveTelemetry.telemetryMeta,
+      telemetryMeta: liveTelemetry?.telemetryMeta || {},
       current: {
-        ...base.current,
-        ...liveTelemetry.current
+        ...(base?.current || {}),
+        ...(liveTelemetry?.current || {})
       }
     };
   }, [selectedPanchayat, streamTick]);
@@ -237,8 +233,7 @@ export default function App() {
     } else {
       setIsAdminView(false);
       if (user.assignedPanchayatId) {
-        const match = PANCHAYATS_DATA.find(p => p.id === user.assignedPanchayatId);
-        if (match) setSelectedPanchayat(match);
+        setSelectedPanchayat(resolvePanchayat(user.assignedPanchayatId));
       }
     }
     fetchDailyAlertStatus(user.assignedPanchayatId || selectedPanchayat.id);
@@ -316,7 +311,7 @@ export default function App() {
             {/* User Daily Alert Card (Once-Per-Day Status) */}
             {currentUser && (
               <UserDailyAlertCard
-                panchayatName={selectedPanchayat.localName || selectedPanchayat.name}
+                panchayatName={selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}
                 todayDate={dailyAlertStatus?.todayDate || new Date().toISOString().slice(0, 10)}
                 dailyAlertStatus={dailyAlertStatus}
                 onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
@@ -348,16 +343,16 @@ export default function App() {
                       {currentLang === 'te' ? 'మీ కేటాయించబడిన గ్రామ పంచాయతీ' : 'Your Assigned Gram Panchayat'}
                     </div>
                     <div className="text-base font-black text-slate-900 flex items-center gap-2">
-                      <span>{selectedPanchayat.localName || selectedPanchayat.name}</span>
+                      <span>{selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}</span>
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {selectedPanchayat.mandal} Mandal • {selectedPanchayat.district} District
+                        {selectedPanchayat?.mandal || selectedPanchayat?.taluk || 'Maredumilli'} Mandal • {selectedPanchayat?.district || 'Alluri Sitharama Raju'} District
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="text-xs text-slate-500 font-mono bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 self-start sm:self-center">
-                  SRTM DEM: {selectedPanchayat.elevationMeters}m | GPS: {selectedPanchayat.lat}°N, {selectedPanchayat.lon}°E
+                  SRTM DEM: {selectedPanchayat?.elevationMeters || 450}m | GPS: {selectedPanchayat?.latitude || selectedPanchayat?.lat || 17.5912}°N, {selectedPanchayat?.longitude || selectedPanchayat?.lon || 81.7138}°E
                 </div>
               </div>
             )}
@@ -365,7 +360,9 @@ export default function App() {
             {/* Weather Hero Card with Downscaled Physical Telemetry */}
             <WeatherHero
               panchayat={selectedPanchayat}
+              selectedPanchayat={selectedPanchayat}
               weather={weatherData}
+              weatherData={weatherData}
               t={t}
               currentLang={currentLang}
               onRefresh={handleManualRefresh}
@@ -384,7 +381,9 @@ export default function App() {
             {/* Standing Crop Protection Advisory & Spray Forecast */}
             <CropAdviser
               panchayat={selectedPanchayat}
+              selectedPanchayat={selectedPanchayat}
               weather={weatherData}
+              weatherData={weatherData}
               t={t}
               currentLang={currentLang}
               onVoiceAsk={(crop) => {
@@ -395,7 +394,9 @@ export default function App() {
             {/* Horizon Forecasts: 3-Day Hourly, 7-Day Trend, 30-Day Outlook */}
             <ForecastTabs
               weather={weatherData}
+              weatherData={weatherData}
               panchayat={selectedPanchayat}
+              selectedPanchayat={selectedPanchayat}
               t={t}
               currentLang={currentLang}
             />
@@ -403,7 +404,9 @@ export default function App() {
             {/* Privacy-Preserving Village Farmer Registry & Panchayat-Wide Alert Module */}
             <FarmerRegistryModule
               selectedPanchayat={selectedPanchayat}
+              panchayat={selectedPanchayat}
               weatherData={weatherData}
+              weather={weatherData}
               t={t}
               currentLang={currentLang}
               onTriggerAlertHUD={handleTriggerAlert}

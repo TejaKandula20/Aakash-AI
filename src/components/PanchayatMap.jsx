@@ -2,13 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Map as MapIcon, Layers, CloudRain, Thermometer, ShieldAlert, Compass, Radio, Satellite, Eye, Loader2, AlertCircle } from 'lucide-react';
 import L from 'leaflet';
 
-// Fix standard Leaflet icon paths in Vite/bundler environments
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+// Fix standard Leaflet icon paths safely in Vite/bundler environments
+if (typeof window !== 'undefined' && L && L.Icon && L.Icon.Default) {
+  try {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  } catch (e) {
+    console.warn('Leaflet icon config notice:', e);
+  }
+}
 
 export default function PanchayatMap({
   selectedPanchayat,
@@ -27,11 +33,21 @@ export default function PanchayatMap({
   const mapInstanceRef = useRef(null);
   const layersGroupRef = useRef(null);
 
-  const { current } = weatherData;
+  const current = weatherData?.current || {
+    temp: 31,
+    feelsLike: 33,
+    condition: 'Localized Showers',
+    rainProb: 80,
+    rainMm: 25,
+    humidity: 80,
+    windSpeed: 15,
+    soilMoisture: 75,
+    alertTriggerType: 'waterlogging'
+  };
   const isTelugu = currentLang === 'te';
 
-  const lat = selectedPanchayat?.lat || 17.6014;
-  const lon = selectedPanchayat?.lon || 81.7142;
+  const lat = selectedPanchayat?.latitude || selectedPanchayat?.lat || 17.5912;
+  const lon = selectedPanchayat?.longitude || selectedPanchayat?.lon || 81.7138;
   const pName = selectedPanchayat?.localName || selectedPanchayat?.name || "Gram Panchayat";
 
   // Sub-points within the 1km micro-mesh

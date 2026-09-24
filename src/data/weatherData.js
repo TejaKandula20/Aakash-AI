@@ -1,10 +1,12 @@
 // Weather data generator for Aakash AI
-export function getWeatherDataForPanchayat(panchayat) {
-  const elev = panchayat.elevationMeters || 100;
+export function getWeatherDataForPanchayat(panchayat = {}) {
+  const p = panchayat || {};
+  const elev = p.elevationMeters || 100;
   const isHilly = elev > 300;
-  const isCoastal = panchayat.terrainType.includes("Coastal");
-  const isArid = panchayat.terrainType.includes("Arid") || panchayat.district === "YSR Kadapa" || panchayat.district === "Jodhpur";
-  const isDelta = panchayat.terrainType.includes("Delta") || panchayat.terrainType.includes("Alluvial");
+  const terrain = p.terrainType || "Alluvial Plains & Coastal Delta";
+  const isCoastal = terrain.includes("Coastal");
+  const isArid = terrain.includes("Arid") || p.district === "YSR Kadapa" || p.district === "Jodhpur";
+  const isDelta = terrain.includes("Delta") || terrain.includes("Alluvial");
 
   // Local temperature calculation based on standard lapse rate (approx 6.5°C per 1000m) + terrain microclimate
   const baseCoarseTemp = isArid ? 39 : isCoastal ? 33 : 34;
@@ -12,28 +14,33 @@ export function getWeatherDataForPanchayat(panchayat) {
   const downscaledTemp = Math.round((baseCoarseTemp - elevCooling) * 10) / 10;
   const feelsLike = isCoastal ? Math.round(downscaledTemp + 6) : Math.round(downscaledTemp + 2);
 
+  const pName = p.name || 'Maredumilli Gram Panchayat';
+  const pLocalName = p.localName || pName;
+  const pTerrain = terrain;
+  const pId = p.id || 'ap-asr-maredumilli';
+
   // Precipitation simulation based on elevation, topography, and seasonal moisture
   let currentRainMm = 0;
   let rainProb = 20;
   let currentCondition = "Partly Cloudy";
   let alertTriggerType = null; // 'waterlogging' | 'heavy_rain' | 'scorching_sun' | null
 
-  if (panchayat.id === "ap-asr-maredumilli") {
+  if (pId === "ap-asr-maredumilli") {
     currentRainMm = 38.5;
     rainProb = 92;
     currentCondition = "Heavy Orographic Downpour";
     alertTriggerType = "waterlogging";
-  } else if (panchayat.id === "ts-khammam-rural") {
+  } else if (pId === "ts-khammam-rural") {
     currentRainMm = 45.0;
     rainProb = 88;
     currentCondition = "Intense Thunderstorm Squall";
     alertTriggerType = "waterlogging";
-  } else if (panchayat.id === "ap-kadapa-pulivendula" || panchayat.id === "ts-adilabad-rural" || panchayat.id === "rj-jodhpur-mandore") {
+  } else if (pId === "ap-kadapa-pulivendula" || pId === "ts-adilabad-rural" || pId === "rj-jodhpur-mandore") {
     currentRainMm = 0;
     rainProb = 5;
     currentCondition = "Scorching Sun / Severe Heat";
     alertTriggerType = "scorching_sun";
-  } else if (panchayat.id === "ts-warangal-geesugonda") {
+  } else if (pId === "ts-warangal-geesugonda") {
     currentRainMm = 28.0;
     rainProb = 75;
     currentCondition = "Afternoon Convective Rain";
@@ -56,7 +63,7 @@ export function getWeatherDataForPanchayat(panchayat) {
   let whyItRains = {
     headline: "Low Pressure & Local Terrain Convergence",
     atmosphericReason: "A cyclonic circulation in the Bay of Bengal is pumping moisture-laden southeasterly winds inland across the Eastern Ghats.",
-    topographicFactor: `Because ${panchayat.name} sits at ${elev}m elevation (${panchayat.terrainType}), rising air cools rapidly (adiabatic expansion), condensing moisture into localized rainclouds 4 hours before the regional plain receives showers.`,
+    topographicFactor: `Because ${pName} sits at ${elev}m elevation (${pTerrain}), rising air cools rapidly (adiabatic expansion), condensing moisture into localized rainclouds 4 hours before the regional plain receives showers.`,
     farmerExplanation: "High atmospheric humidity combined with local ground heating is forcing moist air up your village hills, creating dense rain clouds directly over your panchayat by this afternoon.",
     actionRecommendation: "Immediately halt pesticide spraying as rain will wash off chemicals. Keep field drainage channels clear to prevent water stagnation in low-lying crop furrows.",
     local: {

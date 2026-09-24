@@ -149,34 +149,34 @@ export default function LoginModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
-                type="button"
-                onClick={() => handleDemoLogin('farmer@aakash.gov.in', 'Farmer@123')}
-                disabled={loading}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-emerald-200 hover:border-emerald-400 hover:shadow-sm text-left transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-105 transition-transform">
-                  <Wheat className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-black text-slate-900 leading-tight">Farmer User</div>
-                  <div className="text-[10px] text-slate-500">Maredumilli (1km)</div>
-                </div>
-              </button>
+    type="button"
+    onClick={() => handleDemoLogin('msuchitra954@gmail.com', 'suchitra@9999')}
+    disabled={loading}
+    className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-emerald-200 hover:border-emerald-400 hover:shadow-sm text-left transition-all group"
+  >
+    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-105 transition-transform">
+      <Wheat className="w-4 h-4" />
+    </div>
+    <div>
+      <div className="text-[11px] font-black text-slate-900 leading-tight">User: suchitra</div>
+      <div className="text-[10px] text-slate-500 font-mono">msuchitra954@gmail.com</div>
+    </div>
+  </button>
 
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('admin@aakash.gov.in', 'Admin@123')}
-                disabled={loading}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 hover:shadow-sm text-left transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 group-hover:scale-105 transition-transform">
-                  <ShieldAlert className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-black text-slate-900 leading-tight">Chief Admin</div>
-                  <div className="text-[10px] text-slate-500">13,326 Panchayats</div>
-                </div>
-              </button>
+  <button
+    type="button"
+    onClick={() => handleDemoLogin('kandulatejachowdary@gmail.com', 'teja@9999')}
+    disabled={loading}
+    className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-purple-200 hover:border-purple-400 hover:shadow-sm text-left transition-all group"
+  >
+    <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 group-hover:scale-105 transition-transform">
+      <ShieldAlert className="w-4 h-4" />
+    </div>
+    <div>
+      <div className="text-[11px] font-black text-slate-900 leading-tight">Admin: tejakandula</div>
+      <div className="text-[10px] text-slate-500 font-mono">kandulatejachowdary@gmail.com</div>
+    </div>
+  </button>
             </div>
           </div>
 
@@ -215,15 +215,15 @@ export default function LoginModal({
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="farmer@aakash.gov.in"
+              <label className="block text-xs font-bold text-slate-700 mb-1">Email Address or Username</label>
+  <div className="relative">
+    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+    <input
+      type="text"
+      required
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+      placeholder="kandulatejachowdary@gmail.com or tejakandula"
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
