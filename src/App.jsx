@@ -117,8 +117,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchDailyAlertStatus(selectedPanchayat.id);
-  }, [selectedPanchayat.id, fetchDailyAlertStatus]);
+    const registeredPanchayat = resolvePanchayat(currentUser?.assignedPanchayatId);
+    fetchDailyAlertStatus(registeredPanchayat.id);
+  }, [currentUser?.assignedPanchayatId, fetchDailyAlertStatus]);
 
   // Compute hyper-local downscaled data fused with live telemetry
   const weatherData = useMemo(() => {
@@ -153,10 +154,12 @@ export default function App() {
       return;
     }
 
-    const currentRisk = weatherData?.current?.alertTriggerType;
-    const rain = weatherData?.current?.rainMm || 0;
-    const soil = weatherData?.current?.soilMoisture || 0;
-    const temp = weatherData?.current?.temp || 0;
+    const registeredPanchayat = resolvePanchayat(currentUser?.assignedPanchayatId);
+    const regWeather = getWeatherDataForPanchayat(registeredPanchayat);
+    const currentRisk = regWeather?.current?.alertTriggerType;
+    const rain = regWeather?.current?.rainMm || 0;
+    const soil = regWeather?.current?.soilMoisture || 0;
+    const temp = regWeather?.current?.temp || 0;
 
     const isHazard = Boolean(currentRisk || rain >= 35 || soil >= 85 || temp >= 38.5);
 
@@ -164,7 +167,7 @@ export default function App() {
       const riskType = currentRisk || (temp >= 38.5 ? 'scorching_sun' : 'waterlogging');
 
       // Check synchronous localStorage safety shield to avoid re-render race conditions
-      const localKey = `aakash_alert_sent_${selectedPanchayat.id}_${new Date().toISOString().slice(0, 10)}`;
+      const localKey = `aakash_alert_sent_${registeredPanchayat.id}_${new Date().toISOString().slice(0, 10)}`;
       if (localStorage.getItem(localKey)) {
         return;
       }
@@ -175,8 +178,7 @@ export default function App() {
       const triggerServerDaily = async () => {
         try {
           const res = await apiService.triggerDailyAlert({
-            panchayatId: selectedPanchayat.id,
-            panchayatName: selectedPanchayat.localName || selectedPanchayat.name,
+            panchayatId: registeredPanchayat.id, panchayatName: registeredPanchayat.localName || registeredPanchayat.name,
             riskType,
             riskLevel: 'CRITICAL',
             triggerReason: `Autonomous sensor threshold reached (Rain: ${rain}mm, Soil: ${soil}%, Temp: ${temp}°C)`,
@@ -258,6 +260,8 @@ export default function App() {
   }
 
   // Once authenticated: Render accordingly based on role (Admin vs Farmer User)
+  const registeredPanchayat = resolvePanchayat(currentUser?.assignedPanchayatId);
+
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       
@@ -290,12 +294,12 @@ export default function App() {
             currentLang={currentLang}
           />
         ) : (
-          /* 2. FARMER / USER INTERFACE */
+          /* 2. USER / VILLAGE DASHBOARD VIEW (With all locations browse capability) */
           <div className="space-y-6">
 
-            {/* User Daily Alert Card (Once-Per-Day Status) */}
+            {/* User Daily Alert Card (Strictly Locked to User's REGISTERED Location) */}
             <UserDailyAlertCard
-              panchayatName={selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}
+              panchayatName={registeredPanchayat?.localName || registeredPanchayat?.name || 'Maredumilli'}
               todayDate={dailyAlertStatus?.todayDate || new Date().toISOString().slice(0, 10)}
               dailyAlertStatus={dailyAlertStatus}
               onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
@@ -303,41 +307,62 @@ export default function App() {
               t={t}
             />
 
-            {/* District -> Mandal -> Panchayat Selector */}
-            {currentUser?.role === 'admin' ? (
+            {/* Browsing Banner when viewing a Panchayat other than Registered Alert Location */}
+            {selectedPanchayat.id !== registeredPanchayat.id && (
+              <div className="p-4 rounded-3xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-200/80 flex items-center justify-center font-bold text-amber-900 shrink-0">
+                    📍
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-900 block">
+                      {currentLang === 'te' 
+                        ? `మీరు ప్రస్తుతం ${selectedPanchayat.localName || selectedPanchayat.name} వాతావరణం పరిశీలిస్తున్నారు`
+                        : `Viewing Weather Forecast for ${selectedPanchayat.name}`}
+                    </span>
+                    <span className="text-xs text-amber-800">
+                      {currentLang === 'te'
+                        ? `గమనిక: మీ ఆటోమేటిక్ అత్యవసర ఫోన్ కాల్ అలర్ట్లు మీ రిజిస్టర్డ్ పంచాయతీ (${registeredPanchayat.localName || registeredPanchayat.name}) కొరకే చురుకుగా ఉంటాయి.`
+                        : `Note: Severe weather automated phone calls & SMS alerts remain strictly locked to your registered location (${registeredPanchayat.name}).`}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedPanchayat(registeredPanchayat)}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shrink-0 self-start sm:self-auto transition-all shadow-sm"
+                >
+                  {currentLang === 'te' ? '↩️ నా రిజిస్టర్డ్ పంచాయతీకి వెళ్ళండి' : '↩️ Return to My Alert Hub'}
+                </button>
+              </div>
+            )}
+
+            {/* District -> Mandal -> Panchayat Selector (Available to ALL users to browse any location) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                    {currentLang === 'te' 
+                      ? 'రాష్ట్రవ్యాప్త వాతావరణ అన్వేషణ (13,326 గ్రామ పంచాయతీలు):' 
+                      : 'Explore Weather Forecast across all 13,326 Gram Panchayats:'}
+                  </span>
+                  {selectedPanchayat.id === registeredPanchayat.id && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                      {currentLang === 'te' ? '✓ రిజిస్టర్డ్ అలర్ట్ కేంద్రం' : '✓ Your Registered Alert Hub'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <PanchayatPicker
                 selectedPanchayat={selectedPanchayat}
                 onSelectPanchayat={(p) => {
                   setSelectedPanchayat(p);
-                  fetchDailyAlertStatus(p.id);
                 }}
                 currentLang={currentLang}
                 t={t}
               />
-            ) : (
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm">
-                    GP
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      {currentLang === 'te' ? 'మీ కేటాయించబడిన గ్రామ పంచాయతీ' : 'Your Assigned Gram Panchayat'}
-                    </div>
-                    <div className="text-base font-black text-slate-900 flex items-center gap-2">
-                      <span>{selectedPanchayat?.localName || selectedPanchayat?.name || 'Maredumilli'}</span>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {selectedPanchayat?.mandal || selectedPanchayat?.taluk || 'Maredumilli'} Mandal • {selectedPanchayat?.district || 'Alluri Sitharama Raju'} District
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-xs text-slate-500 font-mono bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 self-start sm:self-center">
-                  SRTM DEM: {selectedPanchayat?.elevationMeters || 450}m | GPS: {selectedPanchayat?.latitude || selectedPanchayat?.lat || 17.5912}°N, {selectedPanchayat?.longitude || selectedPanchayat?.lon || 81.7138}°E
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Weather Hero Card with Downscaled Physical Telemetry */}
             <WeatherHero
@@ -351,7 +376,7 @@ export default function App() {
               isRefreshing={isRefreshing}
             />
 
-            {/* High-Visibility Panchayat Map (CartoDB Tiles + 1km Micro-Mesh) */}
+            {/* High-Visibility Panchayat Map (Clean Esri Tiles + 1km Micro-Mesh) */}
             <PanchayatMap
               selectedPanchayat={selectedPanchayat}
               panchayat={selectedPanchayat}
@@ -439,7 +464,7 @@ export default function App() {
       <IncomingCallHUD
         isOpen={isIncomingCallOpen}
         onClose={() => setIsIncomingCallOpen(false)}
-        panchayat={selectedPanchayat}
+        panchayat={registeredPanchayat}
         weatherData={weatherData}
         alertType={activeAlertTrigger}
         currentLang={currentLang}

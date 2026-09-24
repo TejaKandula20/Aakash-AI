@@ -24,13 +24,15 @@ export default function PanchayatMap({
   onTriggerAlert
 }) {
   const [activeLayer, setActiveLayer] = useState('weather'); // 'weather' | 'temp' | 'risk'
-  const [viewMode, setViewMode] = useState('leaflet'); // 'leaflet' | 'vector'
+  const [viewMode, setViewMode] = useState('leaflet');
+  const [mapTileType, setMapTileType] = useState('streets'); // 'streets' | 'satellite' | 'topo'
   const [selectedSubPoint, setSelectedSubPoint] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(false);
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const layersGroupRef = useRef(null);
 
   const current = weatherData?.current || {
@@ -83,17 +85,26 @@ export default function PanchayatMap({
         // Add zoom control to top-right
         L.control.zoom({ position: 'topright' }).addTo(map);
 
-        // OpenStreetMap Tile Layer
-        // High-performance CartoDB Voyager tiles (100% free, no 403 tile policy blocks)
-        const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        // Free, high-resolution Esri ArcGIS tiles (100% free, zero watermarks, no API key required)
+        const getTileUrl = (type) => {
+          if (type === 'satellite') {
+            return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+          }
+          if (type === 'topo') {
+            return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+          }
+          return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+        };
+
+        const tileLayer = L.tileLayer(getTileUrl(mapTileType), {
           maxZoom: 19,
-          subdomains: 'abcd',
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO | Aakash AI'
+          attribution: '&copy; Esri &mdash; National Geographic, DeLorme, NAVTEQ | Aakash AI'
         }).addTo(map);
 
+        tileLayerRef.current = tileLayer;
         tileLayer.on('load', () => setMapLoaded(true));
         tileLayer.on('tileerror', () => {
-          console.warn("Leaflet tile error, retaining fallback layer");
+          console.warn("Tile error, keeping fallback");
           setMapLoaded(true);
         });
 
@@ -107,6 +118,16 @@ export default function PanchayatMap({
       } else {
         // Pan & zoom to updated panchayat
         mapInstanceRef.current.setView([lat, lon], 14, { animate: true });
+
+        // Update tile layer URL if type changed
+        if (tileLayerRef.current) {
+          const tileUrl = mapTileType === 'satellite'
+            ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+            : mapTileType === 'topo'
+            ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+            : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+          tileLayerRef.current.setUrl(tileUrl);
+        }
       }
 
       // Update vector layers & markers on map

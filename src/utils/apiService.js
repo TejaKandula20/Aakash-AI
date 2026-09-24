@@ -114,7 +114,7 @@ class ApiService {
   }
 
   // Client-side authentication simulation for static hosting (GitHub Pages)
-  _simulateLogin(identifier, password) {
+  _simulateLogin(identifier, password, locationOverride = null) {
     const cleanId = (identifier || '').trim().toLowerCase();
     const allUsers = [...SEEDED_ACCOUNTS, ...this._getRegisteredUsers()];
 
@@ -135,8 +135,18 @@ class ApiService {
       throw err;
     }
 
-    const { password: _, ...userWithoutPassword } = found;
-    const token = 'sim_jwt_' + btoa(JSON.stringify({ id: found.id, role: found.role, exp: Date.now() + 86400000 }));
+    const userWithoutPassword = { ...found };
+    delete userWithoutPassword.password;
+
+    // Apply location override if user selected a custom alert location on the login card
+    if (locationOverride) {
+      if (locationOverride.assignedPanchayatId) userWithoutPassword.assignedPanchayatId = locationOverride.assignedPanchayatId;
+      if (locationOverride.assignedPanchayatName) userWithoutPassword.assignedPanchayatName = locationOverride.assignedPanchayatName;
+      if (locationOverride.assignedDistrict) userWithoutPassword.assignedDistrict = locationOverride.assignedDistrict;
+      if (locationOverride.assignedMandal) userWithoutPassword.assignedMandal = locationOverride.assignedMandal;
+    }
+
+    const token = 'sim_jwt_' + btoa(JSON.stringify({ id: userWithoutPassword.id, role: userWithoutPassword.role, exp: Date.now() + 86400000 }));
     this.setSession(token, userWithoutPassword);
 
     return {
@@ -392,23 +402,26 @@ class ApiService {
   }
 
   // Auth Endpoints
-  async login(email, password) {
+  async login(email, password, locationData = null) {
     if (this._isStaticHost()) {
-      return this._simulateLogin(email, password);
+      return this._simulateLogin(email, password, locationData);
     }
     try {
       const data = await this.request('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, locationData })
       });
       if (data.token && data.user) {
+        if (locationData) {
+          data.user = { ...data.user, ...locationData };
+        }
         this.setSession(data.token, data.user);
       }
       return data;
     } catch (err) {
       if (err.status === 404 || err.status === 405 || (err.message && (err.message.includes('405') || err.message.includes('fetch')))) {
         console.warn('[AUTH] Falling back to client-side auth');
-        return this._simulateLogin(email, password);
+        return this._simulateLogin(email, password, locationData);
       }
       throw err;
     }
