@@ -9,7 +9,6 @@ lerna-debug.log*
 
 # Diagnostic / temporary files
 node_modules
-dist
 dist-ssr
 *.local
 test_here.txt
