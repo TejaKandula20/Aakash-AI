@@ -55,6 +55,7 @@ export default function App() {
   // Live telemetry stream state
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [streamTick, setStreamTick] = useState(0);
+  const [liveHourlyForecast, setLiveHourlyForecast] = useState(null);
 
   // Translation dictionary
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
@@ -120,6 +121,22 @@ export default function App() {
     fetchDailyAlertStatus(selectedPanchayat.id);
   }, [selectedPanchayat.id, fetchDailyAlertStatus]);
 
+  // Fetch live hourly forecast from Open-Meteo for selected panchayat (1-hour intervals)
+  useEffect(() => {
+    let isMounted = true;
+    setLiveHourlyForecast(null);
+
+    streamingWeatherService.fetchLiveHourlyForecast(selectedPanchayat).then(hourly => {
+      if (isMounted && hourly && hourly.length > 0) {
+        setLiveHourlyForecast(hourly);
+      }
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedPanchayat.id, streamTick]);
+
   // Compute hyper-local downscaled data fused with live telemetry
   const weatherData = useMemo(() => {
     const panchayat = selectedPanchayat || PANCHAYATS_DATA[0];
@@ -132,9 +149,10 @@ export default function App() {
       current: {
         ...(base?.current || {}),
         ...(liveTelemetry?.current || {})
-      }
+      },
+      threeDayHourly: liveHourlyForecast || base?.threeDayHourly || []
     };
-  }, [selectedPanchayat, streamTick]);
+  }, [selectedPanchayat, streamTick, liveHourlyForecast]);
 
   // Auto-sync stream every 30 seconds
   useEffect(() => {
@@ -216,10 +234,14 @@ export default function App() {
 
   const handleManualRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => {
+    streamingWeatherService.fetchLiveHourlyForecast(selectedPanchayat).then(hourly => {
+      if (hourly && hourly.length > 0) {
+        setLiveHourlyForecast(hourly);
+      }
+    }).finally(() => {
       setStreamTick(t => t + 1);
       setIsRefreshing(false);
-    }, 500);
+    });
   };
 
   const handleTriggerAlert = (alertType = 'waterlogging') => {
