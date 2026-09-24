@@ -82,30 +82,42 @@ export default function VoiceAssistantModal({
   };
 
   const currentQueries = sampleQueries[currentLang] || sampleQueries.en;
+  const hasGreetedRef = useRef(false);
 
-  // On open, greet the farmer proactively in their selected vernacular language
+  // On open, greet the farmer proactively in their selected vernacular language once
   useEffect(() => {
     if (isOpen) {
-      const greeting = t.voiceGreeting;
-      setChatHistory([
-        {
-          sender: 'ai',
-          text: greeting,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-      // Speak out greeting in farmer's selected language
-      speechService.speak(
-        greeting,
-        langObj.speechLang,
-        () => setIsSpeaking(true),
-        () => setIsSpeaking(false)
-      );
+      if (!hasGreetedRef.current) {
+        hasGreetedRef.current = true;
+        const greeting = t.voiceGreeting;
+        setChatHistory([
+          {
+            sender: 'ai',
+            text: greeting,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+        // Speak out greeting in farmer's selected language
+        speechService.speak(
+          greeting,
+          langObj.speechLang,
+          () => setIsSpeaking(true),
+          () => setIsSpeaking(false)
+        );
+      }
     } else {
+      hasGreetedRef.current = false;
       speechService.stop();
       speechService.stopListening();
+      setIsSpeaking(false);
+      setIsListening(false);
     }
-  }, [isOpen, currentLang]);
+
+    return () => {
+      speechService.stop();
+      speechService.stopListening();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -302,17 +314,22 @@ export default function VoiceAssistantModal({
   };
 
   const startVoiceInput = () => {
+    // 1. Immediately terminate any active speech before listening to avoid feedback loop
+    speechService.stop();
+    setIsSpeaking(false);
     setIsListening(true);
+
     speechService.listen(
       langObj.speechLang,
       (transcript) => {
         setIsListening(false);
-        handleQuery(transcript);
+        if (transcript && transcript.trim()) {
+          handleQuery(transcript);
+        }
       },
       (err) => {
         setIsListening(false);
-        // Fallback demo prompt if mic is unsupported or blocked
-        handleQuery(currentQueries[0]);
+        console.warn("Speech recognition notice:", err?.error || err);
       },
       () => {
         setIsListening(false);

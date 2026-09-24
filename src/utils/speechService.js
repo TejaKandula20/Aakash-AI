@@ -313,9 +313,12 @@ class SpeechService {
     this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.voices = [];
     this.isSpeaking = false;
+    this.isListening = false;
     this.recognition = null;
-    this.currentAudio = null;
-    this.audioQueue = [];
+    this.activePlayer = null;
+    this.sessionCounter = 0;
+    this.activeSessionId = 0;
+    this.chunkTimer = null;
 
     if (typeof window !== 'undefined') {
       if (this.synth) {
@@ -327,15 +330,18 @@ class SpeechService {
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
-        this.recognition = new SpeechRecognition();
-        this.recognition.continuous = false;
-        this.recognition.interimResults = false;
+        try {
+          this.recognition = new SpeechRecognition();
+          this.recognition.continuous = false;
+          this.recognition.interimResults = false;
+        } catch (e) {
+          console.warn("SpeechRecognition init warning:", e);
+        }
       }
     }
   }
 
   unlock() {
-    this.init();
     if (typeof window === 'undefined') return;
     if (this.synth) {
       try {
@@ -401,35 +407,73 @@ class SpeechService {
     return this.voices.find(v => v.default) || this.voices[0] || null;
   }
 
+  // Atomic Stop: Completely terminates any ongoing audio, speech synthesis, and pending timers
+  stop() {
+    // Invalidate active session to kill in-flight chunk loops
+    this.sessionCounter++;
+    this.activeSessionId = this.sessionCounter;
+    this.isSpeaking = false;
+
+    if (this.chunkTimer) {
+      clearTimeout(this.chunkTimer);
+      this.chunkTimer = null;
+    }
+
+    if (this.activePlayer) {
+      try {
+        this.activePlayer.pause();
+        this.activePlayer.removeAttribute('src');
+        this.activePlayer.load();
+        this.activePlayer.onended = null;
+        this.activePlayer.onerror = null;
+      } catch (e) {}
+      this.activePlayer = null;
+    }
+
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+      } catch (e) {}
+    }
+  }
+
   speak(text, langCode = 'te-IN', onStart = null, onEnd = null, onError = null) {
-    // 1. Cancel any currently playing speech or audio
+    // 1. Immediately cancel any active speech & pending callbacks
     this.stop();
+
+    // 2. Mutual exclusion: Stop microphone so assistant voice does not feedback into mic!
+    this.stopListening();
 
     if (!text || !text.trim()) {
       if (onEnd) onEnd();
       return;
     }
 
-    const langPrefix = langCode.split('-')[0].toLowerCase();
-
-    // Multilingual phonetic conversion: converts digits, decimals, and units into vernacular words
-    const processedText = convertMultilingualPhonetics(text, langCode);
-
-    // Split text into sequential natural chunks for smooth streaming (85 chars limit for Google TTS)
-    const chunks = splitTextIntoChunks(processedText, 85);
-
+    const sessionId = this.activeSessionId;
     this.isSpeaking = true;
     if (onStart) onStart();
 
+    const langPrefix = langCode.split('-')[0].toLowerCase();
+    const processedText = convertMultilingualPhonetics(text, langCode);
+    const chunks = splitTextIntoChunks(processedText, 85);
+
+    if (chunks.length === 0) {
+      this.isSpeaking = false;
+      if (onEnd) onEnd();
+      return;
+    }
+
     let currentIndex = 0;
-    this.audioQueue = chunks;
 
     const playNextChunk = () => {
-      if (!this.isSpeaking) return; // User stopped speech
+      // Session guard: if another speech request started or user stopped, abort immediately
+      if (this.activeSessionId !== sessionId || !this.isSpeaking) {
+        return;
+      }
 
       if (currentIndex >= chunks.length) {
         this.isSpeaking = false;
-        this.currentAudio = null;
+        this.activePlayer = null;
         if (onEnd) onEnd();
         return;
       }
@@ -437,63 +481,77 @@ class SpeechService {
       const chunk = chunks[currentIndex];
       currentIndex++;
 
-      try {
-        // High-fidelity native pronunciation via local streaming proxy with direct Google TTS fallback
-        const proxyUrl = `/api/tts?q=${encodeURIComponent(chunk)}&tl=${langPrefix}`;
-        const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${langPrefix}&client=tw-ob`;
-        
-        let audio = new Audio(proxyUrl);
-        this.currentAudio = audio;
+      const proxyUrl = `/api/tts?q=${encodeURIComponent(chunk)}&tl=${langPrefix}`;
+      const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${langPrefix}&client=tw-ob`;
 
-        audio.onended = () => {
-          setTimeout(() => playNextChunk(), 40);
-        };
+      // Clean single audio player pipeline
+      let player = new Audio();
+      this.activePlayer = player;
+      let handled = false;
 
-        audio.onerror = (err) => {
-          console.warn("Proxy audio failed, attempting direct Google TTS:", err);
-          const directAudio = new Audio(directUrl);
-          this.currentAudio = directAudio;
-          directAudio.onended = () => {
+      const finishAndNext = () => {
+        if (handled || this.activeSessionId !== sessionId) return;
+        handled = true;
+        if (player) {
+          player.onended = null;
+          player.onerror = null;
+        }
+        this.chunkTimer = setTimeout(() => {
+          if (this.activeSessionId === sessionId) {
             playNextChunk();
-          };
-          directAudio.onerror = (err2) => {
-            console.warn("Direct audio also failed, falling back to Web Speech API:", err2);
-            const remainingText = chunks.slice(currentIndex - 1).join(" ");
-            this.speakViaSpeechSynthesis(remainingText, langCode, null, onEnd, onError);
-          };
-          directAudio.play().catch(() => {
-            const remainingText = chunks.slice(currentIndex - 1).join(" ");
-            this.speakViaSpeechSynthesis(remainingText, langCode, null, onEnd, onError);
-          });
-        };
+          }
+        }, 50);
+      };
 
-        const playPromise = audio.play();
+      const fallbackToWebSpeech = () => {
+        if (handled || this.activeSessionId !== sessionId) return;
+        handled = true;
+        if (player) {
+          player.pause();
+          player.onended = null;
+          player.onerror = null;
+          this.activePlayer = null;
+        }
+        const remainingText = chunks.slice(currentIndex - 1).join(" ");
+        this.speakViaSpeechSynthesis(remainingText, langCode, null, onEnd, onError, sessionId);
+      };
+
+      player.onended = finishAndNext;
+
+      player.onerror = () => {
+        if (handled || this.activeSessionId !== sessionId) return;
+        // Try direct URL once
+        try {
+          const directPlayer = new Audio(directUrl);
+          this.activePlayer = directPlayer;
+          directPlayer.onended = finishAndNext;
+          directPlayer.onerror = fallbackToWebSpeech;
+          directPlayer.play().catch(fallbackToWebSpeech);
+        } catch (e) {
+          fallbackToWebSpeech();
+        }
+      };
+
+      try {
+        player.src = proxyUrl;
+        const playPromise = player.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
-            console.warn("Audio play() interrupted/prevented:", err);
-            const directAudio = new Audio(directUrl);
-            this.currentAudio = directAudio;
-            directAudio.onended = () => playNextChunk();
-            directAudio.onerror = () => {
-              const remainingText = chunks.slice(currentIndex - 1).join(" ");
-              this.speakViaSpeechSynthesis(remainingText, langCode, null, onEnd, onError);
-            };
-            directAudio.play().catch(() => {
-              const remainingText = chunks.slice(currentIndex - 1).join(" ");
-              this.speakViaSpeechSynthesis(remainingText, langCode, null, onEnd, onError);
-            });
+            // Autoplay restriction or network error -> try direct or fallback
+            if (!handled && this.activeSessionId === sessionId) {
+              player.onerror();
+            }
           });
         }
       } catch (err) {
-        console.warn("Exception in audio playback, falling back:", err);
-        this.speakViaSpeechSynthesis(processedText, langCode, null, onEnd, onError);
+        fallbackToWebSpeech();
       }
     };
 
     playNextChunk();
   }
 
-  speakViaSpeechSynthesis(processedText, langCode, onStart, onEnd, onError) {
+  speakViaSpeechSynthesis(text, langCode, onStart, onEnd, onError, targetSessionId = null) {
     if (!this.synth) {
       this.isSpeaking = false;
       if (onEnd) onEnd();
@@ -501,7 +559,9 @@ class SpeechService {
     }
 
     try {
-      const utterance = new SpeechSynthesisUtterance(processedText);
+      this.synth.cancel(); // Clear any queued utterances
+
+      const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = langCode;
       utterance.rate = 0.92;
       utterance.pitch = 1.0;
@@ -512,16 +572,22 @@ class SpeechService {
       }
 
       utterance.onstart = () => {
+        if (targetSessionId && this.activeSessionId !== targetSessionId) {
+          this.synth.cancel();
+          return;
+        }
         this.isSpeaking = true;
         if (onStart) onStart();
       };
 
       utterance.onend = () => {
+        if (targetSessionId && this.activeSessionId !== targetSessionId) return;
         this.isSpeaking = false;
         if (onEnd) onEnd();
       };
 
       utterance.onerror = (e) => {
+        if (targetSessionId && this.activeSessionId !== targetSessionId) return;
         this.isSpeaking = false;
         console.warn("Speech synthesis error:", e);
         if (onError) onError(e);
@@ -536,34 +602,21 @@ class SpeechService {
     }
   }
 
-  stop() {
-    this.isSpeaking = false;
-    if (this.currentAudio) {
-      try {
-        this.currentAudio.pause();
-        this.currentAudio.currentTime = 0;
-      } catch (e) {}
-      this.currentAudio = null;
-    }
-    this.audioQueue = [];
-
-    if (this.synth) {
-      try {
-        this.synth.cancel();
-      } catch (e) {}
-    }
-  }
-
   listen(langCode = 'te-IN', onResult, onError, onEnd) {
+    // 1. Mutual exclusion: Stop any playing audio before listening
+    this.stop();
+
     if (!this.recognition) {
-      if (onError) onError(new Error("Speech recognition not supported in this browser."));
+      if (onError) onError(new Error("Speech recognition is not supported in this browser."));
       return;
     }
 
     try {
+      this.isListening = true;
       this.recognition.lang = langCode;
 
       this.recognition.onresult = (event) => {
+        this.isListening = false;
         if (event.results && event.results.length > 0 && event.results[0].length > 0) {
           const transcript = event.results[0][0].transcript;
           if (onResult) onResult(transcript);
@@ -571,22 +624,26 @@ class SpeechService {
       };
 
       this.recognition.onerror = (event) => {
-        console.warn("Speech recognition error:", event.error);
+        this.isListening = false;
+        console.warn("Speech recognition event error:", event.error);
         if (onError) onError(event);
       };
 
       this.recognition.onend = () => {
+        this.isListening = false;
         if (onEnd) onEnd();
       };
 
       this.recognition.start();
     } catch (e) {
-      console.warn("Recognition start failed or already active:", e);
+      this.isListening = false;
+      console.warn("Recognition start exception:", e);
       if (onError) onError(e);
     }
   }
 
   stopListening() {
+    this.isListening = false;
     if (this.recognition) {
       try {
         this.recognition.stop();
