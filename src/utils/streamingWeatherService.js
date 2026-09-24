@@ -137,17 +137,85 @@ class StreamingWeatherService {
     };
   }
 
+  // Map Open-Meteo WMO weather codes to human-readable meteorological conditions
+  wmoCodeToCondition(code) {
+    if (code === 0) return "Clear Sky";
+    if (code === 1) return "Mainly Clear";
+    if (code === 2) return "Partly Cloudy";
+    if (code === 3) return "Overcast";
+    if (code === 45 || code === 48) return "Fog";
+    if (code >= 51 && code <= 55) return "Drizzle";
+    if (code >= 61 && code <= 65) return "Rain";
+    if (code >= 80 && code <= 82) return "Rain Showers";
+    if (code >= 95) return "Thunderstorm";
+    return "Scattered Clouds";
+  }
+
+  // Parse Open-Meteo hourly arrays into 1-hour interval objects (72 hours across 3 days)
+  parseOpenMeteoHourly(hourlyData, panchayat) {
+    if (!hourlyData || !hourlyData.time || !hourlyData.time.length) return null;
+
+    const elevCooling = ((panchayat.elevationMeters || 25) / 1000) * 1.5; // micro-elevation lapse adjustment
+
+    return hourlyData.time.map((timeStr, idx) => {
+      // timeStr is ISO "YYYY-MM-DDTHH:MM" in Asia/Kolkata timezone
+      const hour = parseInt(timeStr.slice(11, 13), 10);
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      const formattedTime = `${String(displayHour).padStart(2, '0')}:00 ${period}`;
+
+      const dayIndex = Math.floor(idx / 24);
+      const day = dayIndex === 0 ? "Today" : dayIndex === 1 ? "Tomorrow" : "Day 3";
+
+      const rawTemp = hourlyData.temperature_2m[idx];
+      const downscaledTemp = Math.round((rawTemp - elevCooling) * 10) / 10;
+      const rainMm = hourlyData.precipitation ? Math.round(hourlyData.precipitation[idx] * 10) / 10 : 0;
+      const rainProb = hourlyData.precipitation_probability ? hourlyData.precipitation_probability[idx] : 0;
+      const humidity = hourlyData.relative_humidity_2m ? Math.round(hourlyData.relative_humidity_2m[idx]) : 65;
+      const wind = hourlyData.wind_speed_10m ? Math.round(hourlyData.wind_speed_10m[idx]) : 10;
+      const wmoCode = hourlyData.weather_code ? hourlyData.weather_code[idx] : 1;
+      const condition = this.wmoCodeToCondition(wmoCode);
+
+      // Agronomic spray window
+      let sprayWindow = "Safe";
+      if (rainMm >= 1.0 || rainProb >= 40 || wind >= 20) {
+        sprayWindow = "Prohibited";
+      } else if (rainProb >= 25 || wind >= 14) {
+        sprayWindow = "Risky";
+      } else if (hour >= 6 && hour <= 10 && wind <= 10) {
+        sprayWindow = "Optimal Spray Window";
+      }
+
+      const irrigation = (rainMm >= 2.0 || rainProb >= 45) ? "Hold / Drain" : "Normal";
+
+      return {
+        day,
+        time: formattedTime,
+        hour,
+        temp: Math.round(downscaledTemp),
+        condition,
+        rainProb,
+        rainMm,
+        humidity,
+        wind,
+        sprayWindow,
+        irrigation,
+        isLiveApi: true
+      };
+    });
+  }
+
   // Attempt live client-side browser fetch with graceful fallback
   async fetchLiveOrCompute(panchayat) {
-    // In client browser, try Open-Meteo live API call
-    if (typeof window !== 'undefined' && window.fetch) {
+    const fetchFn = typeof fetch !== 'undefined' ? fetch : (typeof window !== 'undefined' ? window.fetch : null);
+    if (fetchFn) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500); // Fast 2.5s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
         
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${panchayat.latitude}&longitude=${panchayat.longitude}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,cloud_cover&timezone=Asia%2FKolkata`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${panchayat.latitude}&longitude=${panchayat.longitude}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,surface_pressure,cloud_cover&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FKolkata&forecast_days=3`;
         
-        const res = await window.fetch(url, { signal: controller.signal });
+        const res = await fetchFn(url, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (res.ok) {
@@ -161,6 +229,11 @@ class StreamingWeatherService {
             telemetry.current.humidity = liveJson.current.relative_humidity_2m;
             telemetry.current.rainMm = liveJson.current.precipitation;
             telemetry.current.windSpeed = Math.round(liveJson.current.wind_speed_10m);
+
+            if (liveJson.hourly) {
+              telemetry.threeDayHourly = this.parseOpenMeteoHourly(liveJson.hourly, panchayat);
+            }
+
             return telemetry;
           }
         }
@@ -171,6 +244,32 @@ class StreamingWeatherService {
 
     // High-precision physical downscaled stream
     return this.computeDownscaledTelemetry(panchayat);
+  }
+
+  // Fetch real hourly 1-hour interval forecast from Open-Meteo
+  async fetchLiveHourlyForecast(panchayat) {
+    const fetchFn = typeof fetch !== 'undefined' ? fetch : (typeof window !== 'undefined' ? window.fetch : null);
+    if (fetchFn) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${panchayat.latitude}&longitude=${panchayat.longitude}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FKolkata&forecast_days=3`;
+        
+        const res = await fetchFn(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const liveJson = await res.json();
+          if (liveJson && liveJson.hourly) {
+            return this.parseOpenMeteoHourly(liveJson.hourly, panchayat);
+          }
+        }
+      } catch (err) {
+        // Graceful fallback to null
+      }
+    }
+    return null;
   }
 }
 

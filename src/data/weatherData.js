@@ -180,27 +180,87 @@ export function getWeatherDataForPanchayat(panchayat = {}) {
     };
   }
 
-  // 3-Day Forecast (Hourly intervals across 3 days)
-  const threeDayHourly = [
-    // DAY 1 (Today)
-    { day: "Today", time: "06:00 AM", temp: Math.round(downscaledTemp - 3), rainProb: Math.max(10, rainProb - 20), rainMm: 0, humidity: 88, wind: 8, sprayWindow: "Safe", irrigation: "Normal" },
-    { day: "Today", time: "09:00 AM", temp: Math.round(downscaledTemp - 1), rainProb: Math.max(15, rainProb - 10), rainMm: 0.5, humidity: 82, wind: 11, sprayWindow: "Moderate", irrigation: "Normal" },
-    { day: "Today", time: "12:00 PM", temp: Math.round(downscaledTemp + 2), rainProb: Math.min(95, rainProb + 10), rainMm: 4.2, humidity: 76, wind: 16, sprayWindow: "Risky", irrigation: "Hold" },
-    { day: "Today", time: "03:00 PM", temp: Math.round(downscaledTemp + 1), rainProb: rainProb, rainMm: currentRainMm > 15 ? 18.5 : 6.0, humidity: 85, wind: 22, sprayWindow: "Prohibited", irrigation: "Hold / Drain" },
-    { day: "Today", time: "06:00 PM", temp: Math.round(downscaledTemp - 2), rainProb: Math.max(20, rainProb - 15), rainMm: currentRainMm > 15 ? 12.0 : 2.0, humidity: 90, wind: 14, sprayWindow: "Risky", irrigation: "Check field" },
-    { day: "Today", time: "09:00 PM", temp: Math.round(downscaledTemp - 4), rainProb: 25, rainMm: 0.2, humidity: 92, wind: 9, sprayWindow: "Not recommended", irrigation: "Normal" },
-    
-    // DAY 2 (Tomorrow)
-    { day: "Tomorrow", time: "06:00 AM", temp: Math.round(downscaledTemp - 3), rainProb: 30, rainMm: 0, humidity: 86, wind: 7, sprayWindow: "Safe (Early)", irrigation: "Normal" },
-    { day: "Tomorrow", time: "11:00 AM", temp: Math.round(downscaledTemp + 1), rainProb: 45, rainMm: 1.5, humidity: 74, wind: 12, sprayWindow: "Safe until 1 PM", irrigation: "Hold" },
-    { day: "Tomorrow", time: "04:00 PM", temp: Math.round(downscaledTemp), rainProb: Math.min(90, rainProb + 5), rainMm: currentRainMm > 20 ? 14.0 : 3.5, humidity: 82, wind: 18, sprayWindow: "Prohibited", irrigation: "Drainage Check" },
-    { day: "Tomorrow", time: "09:00 PM", temp: Math.round(downscaledTemp - 3), rainProb: 20, rainMm: 0, humidity: 88, wind: 10, sprayWindow: "Night hold", irrigation: "Normal" },
+  // Full 1-Hour Interval Forecast across 3 Days (24 hours each = 72 total hourly points)
+  const generateHourlyForecast = () => {
+    const days = ["Today", "Tomorrow", "Day 3"];
+    const points = [];
 
-    // DAY 3 (Day After)
-    { day: "Day 3", time: "06:00 AM", temp: Math.round(downscaledTemp - 4), rainProb: 15, rainMm: 0, humidity: 82, wind: 6, sprayWindow: "Optimal Spray Window", irrigation: "Normal" },
-    { day: "Day 3", time: "12:00 PM", temp: Math.round(downscaledTemp + 3), rainProb: 25, rainMm: 0.2, humidity: 65, wind: 11, sprayWindow: "Optimal Spray Window", irrigation: "Normal" },
-    { day: "Day 3", time: "05:00 PM", temp: Math.round(downscaledTemp), rainProb: 30, rainMm: 0.8, humidity: 70, wind: 13, sprayWindow: "Moderate", irrigation: "Normal" }
-  ];
+    days.forEach((dayLabel, dayIndex) => {
+      const dayTempDelta = dayIndex === 0 ? 0 : dayIndex === 1 ? -0.5 : 1.0;
+      const dayRainDelta = dayIndex === 0 ? 0 : dayIndex === 1 ? -5 : -10;
+
+      for (let h = 0; h < 24; h++) {
+        const period = h >= 12 ? "PM" : "AM";
+        const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const timeStr = `${String(displayH).padStart(2, '0')}:00 ${period}`;
+
+        // Diurnal solar curve (lowest at 5:30 AM, peak at 2:30 PM)
+        const diurnalFactor = Math.max(0, Math.sin(((h - 5.5) / 14) * Math.PI));
+        const minTemp = downscaledTemp - (isArid ? 6 : 4) + dayTempDelta;
+        const maxTemp = downscaledTemp + (isArid ? 4 : 3) + dayTempDelta;
+        const hourTemp = Math.round((minTemp + (maxTemp - minTemp) * Math.pow(diurnalFactor, 1.2)) * 10) / 10;
+
+        let hourRainProb = Math.max(5, Math.min(95, rainProb + dayRainDelta));
+        let hourRainMm = 0;
+        let condition = "Partly Cloudy";
+
+        if (h >= 13 && h <= 18) {
+          hourRainProb = Math.min(95, hourRainProb + 15);
+          if (currentRainMm > 15) {
+            hourRainMm = Math.round((currentRainMm * 0.35 + (h === 15 ? 4.5 : 1.2)) * 10) / 10;
+            condition = isHilly ? "Heavy Orographic Downpour" : "Intense Thunderstorm Squall";
+          } else if (currentRainMm > 2) {
+            hourRainMm = Math.round((currentRainMm * 0.25) * 10) / 10;
+            condition = "Afternoon Convective Rain";
+          } else {
+            condition = isArid ? "Scorching Sun / Severe Heat" : "Partly Sunny & Humid";
+          }
+        } else if (h >= 6 && h < 13) {
+          hourRainProb = Math.max(5, hourRainProb - 10);
+          hourRainMm = isCoastal && h >= 8 ? 0.8 : 0;
+          condition = hourRainMm > 0 ? "Humid Coastal Squall" : h >= 9 && isArid ? "Scorching Sun / Severe Heat" : "Partly Cloudy";
+        } else {
+          hourRainProb = Math.max(5, hourRainProb - 15);
+          hourRainMm = h <= 21 && currentRainMm > 20 ? 1.5 : 0;
+          condition = hourRainMm > 0 ? "Passing Mountain Showers" : "Clear Sky";
+        }
+
+        const baseRH = isCoastal ? 82 : isHilly ? 78 : isArid ? 38 : 65;
+        const humidity = Math.min(96, Math.max(22, Math.round(baseRH + (1 - diurnalFactor) * 22)));
+        const baseWind = isHilly ? 16 : isCoastal ? 18 : 10;
+        const wind = Math.round(baseWind + (h >= 12 && h <= 17 ? 6 : -3));
+
+        let sprayWindow = "Safe";
+        if (hourRainProb >= 40 || hourRainMm >= 1.0 || wind >= 18) {
+          sprayWindow = "Prohibited";
+        } else if (hourRainProb >= 25 || wind >= 14) {
+          sprayWindow = "Risky";
+        } else if (h >= 6 && h <= 10 && wind <= 10) {
+          sprayWindow = "Optimal Spray Window";
+        }
+
+        const irrigation = (hourRainProb >= 40 || hourRainMm >= 2.0) ? "Hold / Drain" : "Normal";
+
+        points.push({
+          day: dayLabel,
+          time: timeStr,
+          hour: h,
+          temp: Math.round(hourTemp),
+          condition,
+          rainProb: Math.round(hourRainProb),
+          rainMm: hourRainMm,
+          humidity,
+          wind,
+          sprayWindow,
+          irrigation
+        });
+      }
+    });
+
+    return points;
+  };
+
+  const threeDayHourly = generateHourlyForecast();
 
   // 1-Week (7-Day) Forecast
   const oneWeekForecast = [
@@ -559,6 +619,86 @@ export const WEATHER_CONDITIONS_LOCALIZED = {
     mr: "निरभ्र व कोरडे हवामान",
     pa: "ਸਾਫ਼ ਅਤੇ ਖੁਸ਼ਕ",
     bn: "পরিষ্কার ও শুষ্ক আবহাওয়া"
+  },
+  "Clear Sky": {
+    en: "Clear Sky",
+    te: "నిర్మలమైన ఆకాశం",
+    hi: "साफ आसमान",
+    ta: "தெளிவான வானம்",
+    kn: "ಸ್ವಚ್ಛ ಆಕಾಶ",
+    mr: "निरभ्र आकाश",
+    pa: "ਸਾਫ਼ ਅਸਮਾਨ",
+    bn: "পরিষ্কার আকাশ"
+  },
+  "Mainly Clear": {
+    en: "Mainly Clear",
+    te: "ఎక్కువగా నిర్మలం",
+    hi: "मुख्यतः साफ",
+    ta: "பெரும்பாலும் தெளிவானது",
+    kn: "ಹೆಚ್ಚಾಗಿ ಸ್ಪಷ್ಟ",
+    mr: "मुख्यत्वे निरभ्र",
+    pa: "ਮੁੱਖ ਤੌਰ 'ਤੇ ਸਾਫ਼",
+    bn: "প্রধানত পরিষ্কার"
+  },
+  "Overcast": {
+    en: "Overcast",
+    te: "పూర్తిగా మేఘావృతం",
+    hi: "बादल छाए रहेंगे",
+    ta: "முழு மேகமூட்டம்",
+    kn: "ದಟ್ಟ ಮೋಡಕವಿದ",
+    mr: "ढगाळ आकाश",
+    pa: "ਪੂਰੀ ਤਰ੍ਹਾਂ ਬੱਦਲਵਾਈ",
+    bn: "মেঘলা আকাশ"
+  },
+  "Fog": {
+    en: "Fog",
+    te: "పొగమంచు",
+    hi: "कोहरा",
+    ta: "மூடுபனி",
+    kn: "ಮಂಜು",
+    mr: "धुके",
+    pa: "ਧੁੰਦ",
+    bn: "কুয়াশা"
+  },
+  "Drizzle": {
+    en: "Drizzle",
+    te: "చిరుజల్లులు",
+    hi: "बूंदाबांदी",
+    ta: "தூறல்",
+    kn: "ತುಂತುರು ಮಳೆ",
+    mr: "भुरभुर पाऊस",
+    pa: "ਹਲਕੀ ਬੂੰਦਾ-ਬਾਂਦੀ",
+    bn: "গুঁড়ি গুঁড়ি বৃষ্টি"
+  },
+  "Rain": {
+    en: "Rain",
+    te: "వర్షం",
+    hi: "बारिश",
+    ta: "மழை",
+    kn: "ಮಳೆ",
+    mr: "पाऊस",
+    pa: "ਮੀਂਹ",
+    bn: "বৃষ্টি"
+  },
+  "Rain Showers": {
+    en: "Rain Showers",
+    te: "వర్షపు జల్లులు",
+    hi: "वर्षा की बौछारें",
+    ta: "மழைச்சாரல்",
+    kn: "ಮಳೆ ಸುರಿಮಳೆ",
+    mr: "पावसाच्या सरी",
+    pa: "ਮੀਂਹ ਦੀਆਂ ਫੁਹਾਰਾਂ",
+    bn: "বৃষ্টির ধারা"
+  },
+  "Thunderstorm": {
+    en: "Thunderstorm",
+    te: "ఉరుములతో కూడిన తుఫాను",
+    hi: "गरज के साथ तूफान",
+    ta: "இடியுடன் கூடிய மழை",
+    kn: "ಗುಡುಗು ಸಹಿತ ಮಳೆ",
+    mr: "वादळी पाऊस",
+    pa: "ਗਰਜ ਨਾਲ ਤੂਫ਼ਾਨ",
+    bn: "বজ্রবিদ্যুৎ সহ ঝড়"
   }
 };
 
