@@ -243,7 +243,9 @@ class DatabaseService {
       const saved = localStorage.getItem(FARMERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.filter(p => p.district?.toLowerCase() === 'palnadu').length >= 366) {
+          return parsed;
+        }
       }
     } catch (e) {
       console.warn('Could not load farmers from localStorage:', e);

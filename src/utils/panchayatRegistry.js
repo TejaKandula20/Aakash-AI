@@ -1,3 +1,4 @@
+import { PALNADU_OFFICIAL_PANCHAYATS } from '../data/palnaduPanchayats.js';
 // Official Andhra Pradesh Gram Panchayat Registry (13,326 Gram Panchayats across 26 Districts & 679 Mandals)
 // Fused with ISRO Bhuvan / SRTM 30m DEM physical elevation models and IMD agro-meteorological parameters
 
@@ -2605,10 +2606,10 @@ export const AP_DISTRICTS_DATA = [
     "region": "central",
     "headquarters": "Narasaraopet",
     "mandalsCount": 28,
-    "panchayatsCount": 518,
+    "panchayatsCount": 366,
     "lat": 16.23,
     "lon": 80.05,
-    "elevMin": 55,
+    "elevMin": 35,
     "elevMax": 220,
     "terrainType": "Palnadu Limestone Plateau & Dry Uplands",
     "soilType": "Black Cotton, Red Chalky & Calcareous Soil",
@@ -2617,178 +2618,38 @@ export const AP_DISTRICTS_DATA = [
       "Cotton",
       "Tobacco",
       "Red Gram",
-      "Turmeric"
+      "Paddy"
     ],
     "pincodeBase": 522601,
     "keyMandals": [
-      {
-        "name": "Narasaraopet",
-        "localName": "నరసరావుపేట",
-        "elev": 62,
-        "terrain": "Palnadu Capital Plain"
-      },
-      {
-        "name": "Sattenapalle",
-        "localName": "సత్తెనపల్లి",
-        "elev": 75,
-        "terrain": "Cotton Ginnery Plains"
-      },
-      {
-        "name": "Gurazala",
-        "localName": "గురజాల",
-        "elev": 85,
-        "terrain": "Limestone Belt"
-      },
-      {
-        "name": "Macherla",
-        "localName": "మాచర్ల",
-        "elev": 145,
-        "terrain": "Historic Chandravanka Basin"
-      },
-      {
-        "name": "Vinukonda",
-        "localName": "వినుకొండ",
-        "elev": 110,
-        "terrain": "Hillock Upland"
-      },
-      {
-        "name": "Chilakaluripet",
-        "localName": "చిలకలూరిపేట",
-        "elev": 48,
-        "terrain": "National Highway Chilli Belt"
-      },
-      {
-        "name": "Piduguralla",
-        "localName": "పిడుగురాళ్ల",
-        "elev": 95,
-        "terrain": "Lime City of AP"
-      },
-      {
-        "name": "Dachepalle",
-        "localName": "దాచేపల్లి",
-        "elev": 80,
-        "terrain": "Naguleru River Basin"
-      },
-      {
-        "name": "Karempudi",
-        "localName": "కారెంపూడి",
-        "elev": 90,
-        "terrain": "Palnadu Heroes Sacred Plain"
-      },
-      {
-        "name": "Rentachintala",
-        "localName": "రెంటచింతల",
-        "elev": 105,
-        "terrain": "Famous Hottest Weather Station"
-      },
-      {
-        "name": "Veldurthi Palnadu",
-        "localName": "వెల్దుర్తి పల్నాడు",
-        "elev": 160,
-        "terrain": "Nagarjunasagar Plateau"
-      },
-      {
-        "name": "Durgi",
-        "localName": "దుర్గి",
-        "elev": 130,
-        "terrain": "Stone Carving Plateau"
-      },
-      {
-        "name": "Bollapalle",
-        "localName": "బొల్లాపల్లి",
-        "elev": 140,
-        "terrain": "Forest Upland"
-      },
-      {
-        "name": "Ipuru",
-        "localName": "ఈపూరు",
-        "elev": 85,
-        "terrain": "Red Soil Basin"
-      },
-      {
-        "name": "Savalyapuram",
-        "localName": "సావల్యాపురం",
-        "elev": 98,
-        "terrain": "Upland Plain"
-      },
-      {
-        "name": "Rompicherla",
-        "localName": "రొంపిచర్ల",
-        "elev": 78,
-        "terrain": "Dry Cotton Plain"
-      },
-      {
-        "name": "Nekarikallu",
-        "localName": "నెకరికల్లు",
-        "elev": 68,
-        "terrain": "Canal Plain"
-      },
-      {
-        "name": "Muplla",
-        "localName": "ముప్పాళ్ల",
-        "elev": 72,
-        "terrain": "Black Soil Plain"
-      },
-      {
-        "name": "Rajupalem",
-        "localName": "రాజుపాలెం",
-        "elev": 65,
-        "terrain": "Cotton Basin"
-      },
-      {
-        "name": "Bellamkonda",
-        "localName": "బెల్లంకొండ",
-        "elev": 55,
-        "terrain": "Historic Hill Fort Basin"
-      },
-      {
-        "name": "Atchampeta",
-        "localName": "అచ్చంపేట",
-        "elev": 58,
-        "terrain": "Krishna River Valley"
-      },
-      {
-        "name": "Krosuru",
-        "localName": "క్రోసూరు",
-        "elev": 64,
-        "terrain": "Chilli & Cotton"
-      },
-      {
-        "name": "Amaravathi Rural",
-        "localName": "అమరావతి రూరల్",
-        "elev": 35,
-        "terrain": "Krishna Sacred Bank"
-      },
-      {
-        "name": "Edlapadu",
-        "localName": "ఎడ్లపాడు",
-        "elev": 52,
-        "terrain": "Chilli Plains"
-      },
-      {
-        "name": "Nadendla",
-        "localName": "నాదెండ్ల",
-        "elev": 58,
-        "terrain": "Black Cotton Basin"
-      },
-      {
-        "name": "Chilakaluripet Rural",
-        "localName": "చిలకలూరిపేట రూరల్",
-        "elev": 45,
-        "terrain": "Agricultural Basin"
-      },
-      {
-        "name": "Nagarjunasagar Tail",
-        "localName": "నాగార్జునసాగర్ టెయిల్",
-        "elev": 155,
-        "terrain": "Gorge Basin"
-      },
-      {
-        "name": "Macherla Upland",
-        "localName": "మాచర్ల అప్‌ల్యాండ్",
-        "elev": 175,
-        "terrain": "High Plateau"
-      }
+      { "name": "Chilakaluripet", "localName": "చిలకలూరిపేట", "elev": 48, "terrain": "National Highway Chilli Belt" },
+      { "name": "Edlapadu", "localName": "ఎడ్లపాడు", "elev": 52, "terrain": "Chilli & Cotton Plains" },
+      { "name": "Ipur", "localName": "ఈపూరు", "elev": 85, "terrain": "Red Soil Basin" },
+      { "name": "Nadendla", "localName": "నాదెండ్ల", "elev": 58, "terrain": "Black Cotton Basin" },
+      { "name": "Narasaraopet", "localName": "నరసరావుపేట", "elev": 62, "terrain": "Palnadu Capital Plain" },
+      { "name": "Nuzendla", "localName": "నూజెండ్ల", "elev": 115, "terrain": "Upland Cotton Plain" },
+      { "name": "Rompicherla", "localName": "రొంపిచర్ల", "elev": 78, "terrain": "Dry Cotton Plain" },
+      { "name": "Savalyapuram", "localName": "సావల్యాపురం", "elev": 98, "terrain": "Upland Plain" },
+      { "name": "Vinukonda", "localName": "వినుకొండ", "elev": 110, "terrain": "Hillock Upland" },
+      { "name": "Amaravathi", "localName": "అమరావతి", "elev": 35, "terrain": "Krishna Sacred Bank" },
+      { "name": "Atchampet", "localName": "అచ్చంపేట", "elev": 58, "terrain": "Krishna River Valley" },
+      { "name": "Bellamkonda", "localName": "బెల్లంకొండ", "elev": 55, "terrain": "Historic Hill Fort Basin" },
+      { "name": "Krosuru", "localName": "క్రోసూరు", "elev": 64, "terrain": "Chilli & Cotton" },
+      { "name": "Muppalla", "localName": "ముప్పాళ్ల", "elev": 72, "terrain": "Black Soil Plain" },
+      { "name": "Nekarikallu", "localName": "నెకరికల్లు", "elev": 68, "terrain": "Nagarjunasagar Canal Plain" },
+      { "name": "Pedakurapadu", "localName": "పెదకూరపాడు", "elev": 46, "terrain": "Fertile Agro Basin" },
+      { "name": "Rajupalem", "localName": "రాజుపాలెం", "elev": 65, "terrain": "Cotton Basin" },
+      { "name": "Sattenapalli", "localName": "సత్తెనపల్లి", "elev": 75, "terrain": "Cotton Ginnery Plains" },
+      { "name": "Bollapalli", "localName": "బొల్లాపల్లి", "elev": 140, "terrain": "Forest Upland" },
+      { "name": "Dachepalli", "localName": "దాచేపల్లి", "elev": 80, "terrain": "Naguleru River Basin" },
+      { "name": "Durgi", "localName": "దుర్గి", "elev": 130, "terrain": "Stone Carving Plateau" },
+      { "name": "Gurazala", "localName": "గురజాల", "elev": 85, "terrain": "Limestone Belt" },
+      { "name": "Karempudi", "localName": "కారెంపూడి", "elev": 90, "terrain": "Palnadu Heroes Sacred Plain" },
+      { "name": "Machavaram", "localName": "మాచవరం", "elev": 68, "terrain": "Riverine Plain" },
+      { "name": "Macherla", "localName": "మాచర్ల", "elev": 145, "terrain": "Historic Chandravanka Basin" },
+      { "name": "Piduguralla", "localName": "పిడుగురాళ్ల", "elev": 95, "terrain": "Lime City of AP" },
+      { "name": "Rentachintala", "localName": "రెంటచింతల", "elev": 105, "terrain": "Famous Hottest Weather Station" },
+      { "name": "Veldurthi", "localName": "వెల్దుర్తి", "elev": 160, "terrain": "Nagarjunasagar Plateau" }
     ]
   },
   {
@@ -4938,6 +4799,16 @@ export function getAllPanchayats() {
 
   // Generate for each district to total exactly 13,326
   for (const dist of AP_DISTRICTS_DATA) {
+    if (dist.name === 'Palnadu') {
+      // Use official 366 Gram Panchayats from Government of AP (https://palnadu.ap.gov.in/village-panchayats/)
+      PALNADU_OFFICIAL_PANCHAYATS.forEach(p => {
+        if (!curatedMap.has(p.id)) {
+          list.push(p);
+        }
+      });
+      continue;
+    }
+
     const mandals = dist.keyMandals || dist.mandals || [];
     const totalPanchayatsInDist = dist.panchayatsCount;
     const panchayatsPerMandal = Math.floor(totalPanchayatsInDist / mandals.length);

@@ -352,26 +352,35 @@ export default function AdminDashboard({
     <div className="space-y-6 animate-fade-in pb-12">
       
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+      <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-500/30 relative overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url(/assets/images/hero-landscape.jpg)' }} />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold border border-indigo-400/30 flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
-                State Command & Control
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
-                Admin: {currentUser?.username || 'Teja Kandula'}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Aakash AI Administrative Command Center
-            </h1>
+          <div className="flex items-start gap-4">
+            <img 
+              src="/assets/images/aakash-crest.svg" 
+              alt="Aakash AI" 
+              className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 drop-shadow-xl hover:scale-105 transition-transform" 
+            />
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
+                  State Command &amp; Control
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-bold border border-purple-500/30">
+                  Admin: {currentUser?.username || 'Teja Kandula'}
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2">
+                <span>Aakash AI Command Center</span>
+                <span className="text-xs sm:text-sm font-normal text-emerald-300/80 font-mono">13,326 GP Mesh</span>
+              </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
               Centralized monitoring for 13,326 Gram Panchayats, dual-table Farmers &amp; Panchayats database management, phone-based manual alerts, and emergency sentinels.
             </p>
+          </div>
           </div>
 
           <div className="flex items-center gap-3 self-start md:self-auto">

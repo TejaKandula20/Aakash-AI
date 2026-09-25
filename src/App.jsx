@@ -325,7 +325,7 @@ export default function App() {
   const registeredPanchayat = resolvePanchayat(currentUser?.assignedPanchayatId);
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen agro-mesh-bg text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       
       {/* Universal Top Navigation */}
       <Navbar

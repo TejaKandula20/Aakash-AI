@@ -14,7 +14,8 @@ export default function UserDailyAlertCard({
   const record = dailyAlertStatus?.record;
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm mb-6">
+    <div className="agro-glass rounded-3xl p-5 sm:p-6 border border-emerald-100/90 shadow-md mb-6 relative overflow-hidden">
+      <div className="absolute -right-12 -bottom-12 w-44 h-44 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         
         <div className="flex items-start gap-3.5">

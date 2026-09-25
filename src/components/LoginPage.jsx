@@ -240,31 +240,47 @@ export default function LoginPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex flex-col justify-between p-4 sm:p-6 text-slate-100 font-sans">
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-between p-4 sm:p-6 text-slate-100 font-sans relative overflow-x-hidden">
+      
+      {/* Atmospheric Background with Photo Texture */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center pointer-events-none opacity-20 mix-blend-luminosity filter saturate-150" 
+        style={{ backgroundImage: 'url(/assets/images/hero-landscape.jpg)' }} 
+      />
+      <div className="fixed inset-0 bg-gradient-to-tr from-slate-950 via-emerald-950/85 to-slate-950 pointer-events-none" />
+      <div className="fixed inset-0 agro-mesh-bg opacity-30 pointer-events-none" />
       
       {/* Top Header */}
-      <div className="flex items-center justify-between max-w-5xl w-full mx-auto pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-            <Compass className="w-4 h-4 text-emerald-400" />
-          </div>
+      <div className="flex items-center justify-between max-w-6xl w-full mx-auto pb-4 border-b border-emerald-900/40 relative z-10">
+        <div className="flex items-center gap-3">
+          <img 
+            src="/assets/images/aakash-crest.svg" 
+            alt="Aakash AI Crest" 
+            className="w-10 h-10 sm:w-11 sm:h-11 drop-shadow-md hover:scale-105 transition-transform" 
+          />
           <div>
-            <h1 className="font-black text-sm sm:text-base text-white">
-              {t.appTitle || 'Aakash AI'}
-            </h1>
-            <p className="text-[10px] text-slate-400">
-              {t.systemSubtitle || 'AI-Powered Panchayat Weather Sentinel'}
+            <div className="flex items-center gap-2">
+              <h1 className="font-black text-base sm:text-lg text-white tracking-tight flex items-center gap-1.5">
+                <span className="text-gradient-emerald font-black">Aakash AI</span>
+                <span className="text-slate-300 font-bold text-xs sm:text-sm">ఆకాశ్ AI</span>
+              </h1>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30">
+                v2.0 LIVE
+              </span>
+            </div>
+            <p className="text-[11px] text-emerald-200/70 font-medium">
+              {t.systemSubtitle || 'AI-Powered Panchayat Weather Sentinel • Andhra Pradesh'}
             </p>
           </div>
         </div>
 
         {/* Display Language dropdown */}
-        <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-2xl border border-slate-700/60 shadow-sm text-xs">
-          <Globe className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800/90 px-3.5 py-2 rounded-2xl border border-emerald-500/30 shadow-lg text-xs transition-all">
+          <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
           <select
             value={currentLang}
             onChange={(e) => handleLanguageSelect(e.target.value)}
-            className="bg-transparent text-slate-200 font-bold focus:outline-none cursor-pointer"
+            className="bg-transparent text-slate-200 font-bold focus:outline-none cursor-pointer pr-1"
             aria-label="Display Language"
           >
             {LANGUAGES.map((l) => (
@@ -276,8 +292,80 @@ export default function LoginPage({
         </div>
       </div>
 
-      {/* Main Login Card */}
-      <div className="w-full max-w-xl mx-auto my-auto bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
+      {/* Main Content Area: Split Showcase & Login Grid */}
+      <div className="max-w-6xl w-full mx-auto my-auto py-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+        
+        {/* Left 5 Cols: Visual Platform Showcase (Hidden on extra small, gorgeous on desktop/tablet) */}
+        <div className="hidden lg:flex lg:col-span-5 flex-col justify-between space-y-6">
+          
+          {/* Hero Visual Card */}
+          <div className="relative rounded-3xl overflow-hidden border border-emerald-500/30 shadow-2xl group">
+            <img 
+              src="/assets/images/hero-landscape.jpg" 
+              alt="Andhra Pradesh Agricultural Landscape" 
+              className="w-full h-56 object-cover transform group-hover:scale-105 transition-transform duration-700" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent flex flex-col justify-end p-5">
+              <span className="text-[10px] uppercase font-mono tracking-widest text-emerald-400 font-bold mb-1">
+                Hyper-Local Agro Intelligence
+              </span>
+              <h3 className="text-lg font-black text-white leading-snug">
+                13,326 Gram Panchayats Protected Against Micro-Climate Disasters
+              </h3>
+            </div>
+          </div>
+
+          {/* 4 Pillars Grid */}
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/20 backdrop-blur-md space-y-1">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                <Compass className="w-4 h-4 text-emerald-400" />
+                <span>1km Micro-Mesh</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                Downscaled SRTM 30m terrain physics for elevation-precise rainfall.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/20 backdrop-blur-md space-y-1">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <Phone className="w-4 h-4 text-amber-400" />
+                <span>IVR Audio Calls</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                Autonomous voice call &amp; SMS alerts directly to farmer phones.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/20 backdrop-blur-md space-y-1">
+              <div className="flex items-center gap-2 text-sky-400 font-bold">
+                <Volume2 className="w-4 h-4 text-sky-400" />
+                <span>8 Indic Languages</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                Fluent regional speech synthesis in Telugu, Hindi, Tamil &amp; more.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-emerald-500/20 backdrop-blur-md space-y-1">
+              <div className="flex items-center gap-2 text-teal-400 font-bold">
+                <Sprout className="w-4 h-4 text-teal-400" />
+                <span>Crop Advisory</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                Paddy, Cotton, Chilli pest watches and spray window forecasts.
+              </p>
+            </div>
+          </div>
+
+          {/* Testimonial Quote */}
+          <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/20 text-xs text-emerald-200/90 leading-relaxed font-medium">
+            "ఆంధ్రప్రదేశ్ రైతాంగానికి సూక్ష్మ వాతావరణ ముప్పుల నుండి ముందుగానే రక్షణ కల్పించే ఆకాశ్ AI ప్లాట్‌ఫారమ్."
+          </div>
+        </div>
+
+        {/* Right 7 Cols: Interactive Login & Registration Card */}
+        <div className="lg:col-span-7 w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
         
         {/* Banner */}
         <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 p-6 text-white text-center relative">
@@ -628,9 +716,10 @@ export default function LoginPage({
         </div>
 
       </div>
+      </div>
 
-      <div className="text-center text-[10px] text-slate-500 pt-4">
-        Smart India Hackathon • Aakash AI Hyper-Local Downscaled Weather Sentinel
+      <div className="text-center text-[11px] text-slate-500 pt-4 relative z-10">
+        Smart India Hackathon • Aakash AI Hyper-Local Downscaled Weather Sentinel • Andhra Pradesh
       </div>
 
     </div>

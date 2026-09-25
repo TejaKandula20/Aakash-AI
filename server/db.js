@@ -218,6 +218,34 @@ export function initDatabase() {
     console.log('[DB] Seeded initial Panchayats table');
   }
 
+  // 3b. Seed Official Palnadu Gram Panchayats (from https://palnadu.ap.gov.in/village-panchayats/)
+  const checkPalnadu = db.prepare('SELECT count(*) as count FROM panchayats WHERE district = ?').all('Palnadu');
+  if (checkPalnadu[0].count < 366) {
+    const palnaduFile = path.join(dataDir, 'palnadu_panchayats.json');
+    if (fs.existsSync(palnaduFile)) {
+      const palnaduList = JSON.parse(fs.readFileSync(palnaduFile, 'utf8'));
+      const insertPanchayat = db.prepare(`
+        INSERT OR REPLACE INTO panchayats (
+          id, name, local_name, district, mandal,
+          elevation_meters, latitude, longitude,
+          soil_type, risk_level, active_hazard, last_alert_date, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const now = getCurrentTimestampIST();
+      db.exec('BEGIN TRANSACTION;');
+      for (const p of palnaduList) {
+        insertPanchayat.run(
+          p.id, p.name, p.localName, p.district, p.mandal,
+          p.elevationMeters, p.latitude, p.longitude,
+          p.soilType, p.riskLevel, p.activeHazard, p.lastAlertDate,
+          now
+        );
+      }
+      db.exec('COMMIT;');
+      console.log(`[DB] Seeded ${palnaduList.length} official Palnadu Gram Panchayats from palnadu.ap.gov.in`);
+    }
+  }
+
   // 4. Seed Farmers table
   const checkFarmers = db.prepare('SELECT count(*) as count FROM farmers').all();
   if (checkFarmers[0].count === 0) {

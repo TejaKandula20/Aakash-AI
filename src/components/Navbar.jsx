@@ -18,19 +18,23 @@ export default function Navbar({
   onToggleAdminView
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-emerald-100 shadow-xs">
+      <div className="h-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500 w-full" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-              <CloudRain className="w-6 h-6 sm:w-7 sm:h-7 animate-pulse" />
-            </div>
+            <img 
+              src="/assets/images/aakash-crest.svg" 
+              alt="Aakash AI" 
+              className="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md hover:scale-105 transition-transform cursor-pointer" 
+            />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900">
-                  {t.appTitle}
+                <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                  <span className="text-gradient-emerald">Aakash AI</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-400">ఆకాశ్ AI</span>
                 </span>
                 {currentUser?.role === 'admin' && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-extrabold border border-purple-200">
