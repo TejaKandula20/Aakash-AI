@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import https from 'https';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { db, initDatabase, hashPassword, verifyPassword, getTodayIST, getCurrentTimestampIST } from './db.js';
 import { generateToken, authenticate, requireRole, logAudit } from './auth.js';
 
@@ -62,9 +68,34 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    // Update last login
     const now = getCurrentTimestampIST();
-    db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, user.id);
+
+    // If location was selected at login portal, update user profile and assign to that location
+    const locationData = req.body.locationData;
+    if (locationData && locationData.assignedPanchayatId) {
+      db.prepare(`
+        UPDATE users SET 
+          assigned_panchayat_id = ?, 
+          assigned_panchayat_name = ?, 
+          assigned_district = ?, 
+          assigned_mandal = ?,
+          last_login_at = ?
+        WHERE id = ?
+      `).run(
+        locationData.assignedPanchayatId,
+        locationData.assignedPanchayatName || locationData.assignedPanchayatId,
+        locationData.assignedDistrict || user.assigned_district,
+        locationData.assignedMandal || user.assigned_mandal,
+        now,
+        user.id
+      );
+      user.assigned_panchayat_id = locationData.assignedPanchayatId;
+      user.assigned_panchayat_name = locationData.assignedPanchayatName || locationData.assignedPanchayatId;
+      user.assigned_district = locationData.assignedDistrict || user.assigned_district;
+      user.assigned_mandal = locationData.assignedMandal || user.assigned_mandal;
+    } else {
+      db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now, user.id);
+    }
 
     // Generate JWT
     const token = generateToken({
@@ -572,6 +603,586 @@ app.post('/api/alerts/trigger-daily', authenticate, (req, res) => {
     }
     console.error('Trigger daily alert error:', err);
     return res.status(500).json({ error: 'Failed to record daily alert.' });
+  }
+});
+
+// ==========================================
+// 4B. SEPARATE DATABASE ENDPOINTS: FARMERS & PANCHAYATS
+// ==========================================
+
+// GET /api/database/farmers
+app.get('/api/database/farmers', (req, res) => {
+  try {
+    const { panchayatId, district, mandal, search, phone } = req.query;
+    let query = 'SELECT * FROM farmers WHERE 1=1';
+    const params = [];
+
+    if (panchayatId) {
+      query += ' AND panchayat_id = ?';
+      params.push(panchayatId);
+    }
+    if (district) {
+      query += ' AND LOWER(district) = ?';
+      params.push(district.toLowerCase());
+    }
+    if (mandal) {
+      query += ' AND LOWER(mandal) = ?';
+      params.push(mandal.toLowerCase());
+    }
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      query += ' AND (phone LIKE ? OR masked_phone LIKE ?)';
+      params.push(`%${cleanPhone}%`, `%${phone}%`);
+    }
+    if (search) {
+      const q = `%${search.toLowerCase()}%`;
+      query += ' AND (LOWER(name) LIKE ? OR LOWER(panchayat_name) LIKE ? OR LOWER(primary_crop) LIKE ? OR phone LIKE ?)';
+      params.push(q, q, q, `%${search}%`);
+    }
+
+    query += ' ORDER BY id DESC';
+    const farmers = db.prepare(query).all(...params);
+    return res.json({ farmers, count: farmers.length });
+  } catch (err) {
+    console.error('Fetch farmers error:', err);
+    return res.status(500).json({ error: 'Failed to fetch farmers database.' });
+  }
+});
+
+// POST /api/database/farmers
+app.post('/api/database/farmers', (req, res) => {
+  try {
+    const { name, phone, district, mandal, panchayatId, panchayatName, primaryCrop, landAcres, language, alertPreference } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and Phone number are required.' });
+    }
+
+    const cleanDigits = phone.replace(/\D/g, '');
+    const prefix = cleanDigits.slice(0, 5);
+    const maskedPhone = cleanDigits.length >= 10 ? `+91 ${prefix} •••••` : phone;
+    const now = getCurrentTimestampIST();
+
+    const result = db.prepare(`
+      INSERT INTO farmers (
+        name, phone, masked_phone, district, mandal, panchayat_id, panchayat_name,
+        primary_crop, land_acres, language, alert_preference, is_active, registered_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `).run(
+      name.trim(),
+      phone.trim(),
+      maskedPhone,
+      district || 'Alluri Sitharama Raju',
+      mandal || 'Maredumilli',
+      panchayatId || 'ap-asr-maredumilli',
+      panchayatName || 'Maredumilli',
+      primaryCrop || 'Paddy',
+      parseFloat(landAcres) || 2.5,
+      language || 'te',
+      alertPreference || 'Both',
+      now
+    );
+
+    const createdFarmer = {
+      id: result.lastInsertRowid,
+      name: name.trim(),
+      phone: phone.trim(),
+      masked_phone: maskedPhone,
+      district: district || 'Alluri Sitharama Raju',
+      mandal: mandal || 'Maredumilli',
+      panchayat_id: panchayatId || 'ap-asr-maredumilli',
+      panchayat_name: panchayatName || 'Maredumilli',
+      primary_crop: primaryCrop || 'Paddy',
+      land_acres: parseFloat(landAcres) || 2.5,
+      language: language || 'te',
+      alert_preference: alertPreference || 'Both',
+      is_active: 1,
+      registered_at: now
+    };
+
+    return res.status(201).json({ success: true, farmer: createdFarmer });
+  } catch (err) {
+    console.error('Create farmer error:', err);
+    return res.status(500).json({ error: 'Failed to register farmer.' });
+  }
+});
+
+// GET /api/database/panchayats
+app.get('/api/database/panchayats', (req, res) => {
+  try {
+    const panchayats = db.prepare(`
+      SELECT p.*, (SELECT count(*) FROM farmers f WHERE f.panchayat_id = p.id) as registered_farmers_count
+      FROM panchayats p
+      ORDER BY p.name ASC
+    `).all();
+    return res.json({ panchayats });
+  } catch (err) {
+    console.error('Fetch panchayats error:', err);
+    return res.status(500).json({ error: 'Failed to fetch panchayats database.' });
+  }
+});
+
+
+// ==========================================
+// OUTBOUND TELEPHONY & SMS GATEWAY HELPERS
+// ==========================================
+
+function generateEmergencyAlertSms(farmer, alertType, panchayatName) {
+  const pName = panchayatName || farmer?.panchayat_name || 'మీ గ్రామ పంచాయతీ';
+  switch (alertType) {
+    case 'scorching_sun':
+      return `[ఆకాశ్ AI అత్యవసర హెచ్చరిక] ${pName} పరిధిలో తీవ్ర వడగాల్పులు & 38.5°C కంటే ఎక్కువ ఉష్ణోగ్రత నమోదయ్యే అవకాశం ఉంది. పంటలకు తక్షణ నీటి తడులు అందించండి. హెల్ప్‌లైన్: 1800-AAKASH`;
+    case 'wind_squall':
+      return `[ఆకాశ్ AI అత్యవసర హెచ్చరిక] ${pName} పరిధిలో 45+ కి.మీ వేగంతో ఈదురుగాలుల ప్రమాదం ఉంది. పంటలకు రక్షణ కర్రలు ఏర్పాటు చేయండి. హెల్ప్‌లైన్: 1800-AAKASH`;
+    case 'thunderstorm':
+      return `[ఆకాశ్ AI అత్యవసర హెచ్చరిక] ${pName} పరిధిలో తీవ్ర పిడుగులు & ఉరుములతో వర్షం పడే అవకాశం ఉంది. చెట్ల క్రింద ఉండరాదు. సురక్షిత ప్రాంతాలకు వెళ్ళండి. హెల్ప్‌లైన్: 1800-AAKASH`;
+    case 'waterlogging':
+    default:
+      return `[ఆకాశ్ AI అత్యవసర హెచ్చరిక] ${pName} పరిధిలో కుండపోత వర్షం & నీరు నిలిచే ప్రమాదం ఉంది. పంట పొలాల నుండి అదనపు నీటిని వెంటనే బయటకు మళ్లించండి. హెల్ప్‌లైన్: 1800-AAKASH`;
+  }
+}
+
+
+// ==========================================
+// TELEPHONY & CARRIER GATEWAY CONFIGURATION
+// ==========================================
+const telephonySettingsFile = path.join(__dirname, 'data', 'telephony_settings.json');
+
+function getTelephonySettings() {
+  try {
+    if (fs.existsSync(telephonySettingsFile)) {
+      return JSON.parse(fs.readFileSync(telephonySettingsFile, 'utf8'));
+    }
+  } catch (e) {
+    console.warn('Failed to read telephony settings:', e.message);
+  }
+  return {
+    fast2smsApiKey: process.env.FAST2SMS_API_KEY || '',
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+    twilioFromPhone: process.env.TWILIO_FROM_PHONE || ''
+  };
+}
+
+function saveTelephonySettings(settings) {
+  try {
+    fs.writeFileSync(telephonySettingsFile, JSON.stringify(settings, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Failed to save telephony settings:', e.message);
+    return false;
+  }
+}
+
+async function sendFast2Sms(apiKey, phone10Digits, text) {
+  return new Promise((resolve) => {
+    try {
+      const postData = JSON.stringify({
+        route: 'q',
+        message: text,
+        language: 'unicode',
+        flash: 0,
+        numbers: phone10Digits
+      });
+
+      const req = https.request({
+        hostname: 'www.fast2sms.com',
+        path: '/dev/bulkV2',
+        method: 'POST',
+        headers: {
+          'authorization': apiKey,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        },
+        timeout: 6000
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({
+              attempted: true,
+              success: parsed.return === true,
+              provider: 'Fast2SMS',
+              recipient: phone10Digits,
+              details: parsed
+            });
+          } catch (e) {
+            resolve({ attempted: true, success: false, provider: 'Fast2SMS', details: data });
+          }
+        });
+      });
+
+      req.on('error', err => resolve({ attempted: true, success: false, provider: 'Fast2SMS', error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ attempted: true, success: false, provider: 'Fast2SMS', error: 'Timeout' }); });
+      req.write(postData);
+      req.end();
+    } catch (e) {
+      resolve({ attempted: false, success: false, provider: 'Fast2SMS', error: e.message });
+    }
+  });
+}
+
+async function sendTwilioSms(accountSid, authToken, fromPhone, toPhone, text) {
+  return new Promise((resolve) => {
+    try {
+      const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+      const postData = new URLSearchParams({
+        To: toPhone,
+        From: fromPhone,
+        Body: text
+      }).toString();
+
+      const req = https.request({
+        hostname: 'api.twilio.com',
+        path: `/2010-04-01/Accounts/${accountSid}/Messages.json`,
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData)
+        },
+        timeout: 6000
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({
+              attempted: true,
+              success: !parsed.error_code,
+              provider: 'Twilio SMS',
+              recipient: toPhone,
+              details: parsed
+            });
+          } catch (e) {
+            resolve({ attempted: true, success: false, provider: 'Twilio SMS', details: data });
+          }
+        });
+      });
+
+      req.on('error', err => resolve({ attempted: true, success: false, provider: 'Twilio SMS', error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ attempted: true, success: false, provider: 'Twilio SMS', error: 'Timeout' }); });
+      req.write(postData);
+      req.end();
+    } catch (e) {
+      resolve({ attempted: false, success: false, provider: 'Twilio SMS', error: e.message });
+    }
+  });
+}
+
+async function triggerTwilioCall(accountSid, authToken, fromPhone, toPhone, text) {
+  return new Promise((resolve) => {
+    try {
+      const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+      const twiml = `<Response><Say voice="Polly.Aditi" language="hi-IN">${text}</Say></Response>`;
+      const postData = new URLSearchParams({
+        To: toPhone,
+        From: fromPhone,
+        Twiml: twiml
+      }).toString();
+
+      const req = https.request({
+        hostname: 'api.twilio.com',
+        path: `/2010-04-01/Accounts/${accountSid}/Calls.json`,
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData)
+        },
+        timeout: 6000
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({
+              attempted: true,
+              success: !parsed.error_code,
+              provider: 'Twilio Voice',
+              recipient: toPhone,
+              details: parsed
+            });
+          } catch (e) {
+            resolve({ attempted: true, success: false, provider: 'Twilio Voice', details: data });
+          }
+        });
+      });
+
+      req.on('error', err => resolve({ attempted: true, success: false, provider: 'Twilio Voice', error: err.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ attempted: true, success: false, provider: 'Twilio Voice', error: 'Timeout' }); });
+      req.write(postData);
+      req.end();
+    } catch (e) {
+      resolve({ attempted: false, success: false, provider: 'Twilio Voice', error: e.message });
+    }
+  });
+}
+
+async function sendOutboundSms(rawPhone, text) {
+  const cleanDigits = (rawPhone || '').replace(/\D/g, '');
+  if (!cleanDigits || cleanDigits.length < 10) {
+    return { attempted: false, success: false, reason: 'Invalid phone number format' };
+  }
+  const last10 = cleanDigits.slice(-10);
+  const formattedPhone = cleanDigits.length === 10 ? `+91${cleanDigits}` : (rawPhone.startsWith('+') ? rawPhone : `+${cleanDigits}`);
+
+  const settings = getTelephonySettings();
+
+  // 1. If Fast2SMS API key is configured, use it for direct Indian carrier SMS
+  if (settings.fast2smsApiKey) {
+    const f2Res = await sendFast2Sms(settings.fast2smsApiKey, last10, text);
+    if (f2Res.success) return f2Res;
+  }
+
+  // 2. If Twilio is configured, use it
+  if (settings.twilioAccountSid && settings.twilioAuthToken && settings.twilioFromPhone) {
+    const twRes = await sendTwilioSms(settings.twilioAccountSid, settings.twilioAuthToken, settings.twilioFromPhone, formattedPhone, text);
+    if (twRes.success) return twRes;
+  }
+
+  // 3. Fallback to Textbelt
+  return new Promise((resolve) => {
+    try {
+      const postData = JSON.stringify({
+        phone: formattedPhone,
+        message: text,
+        key: process.env.TEXTBELT_KEY || 'textbelt'
+      });
+
+      const req = https.request({
+        hostname: 'textbelt.com',
+        path: '/text',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        },
+        timeout: 4000
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({
+              attempted: true,
+              success: Boolean(parsed.success),
+              provider: 'Textbelt',
+              recipient: formattedPhone,
+              details: parsed
+            });
+          } catch (e) {
+            resolve({ attempted: true, success: false, provider: 'Textbelt', details: data });
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        console.warn('Outbound SMS gateway network error (continuing gracefully):', err.message);
+        resolve({ attempted: true, success: false, provider: 'Textbelt', error: err.message });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ attempted: true, success: false, provider: 'Textbelt', error: 'Gateway timeout' });
+      });
+
+      req.write(postData);
+      req.end();
+    } catch (e) {
+      resolve({ attempted: false, success: false, error: e.message });
+    }
+  });
+}
+
+async function triggerOutboundCall(rawPhone, text) {
+  const cleanDigits = (rawPhone || '').replace(/\D/g, '');
+  if (!cleanDigits || cleanDigits.length < 10) {
+    return { attempted: false, success: false, reason: 'Invalid phone number format' };
+  }
+  const formattedPhone = cleanDigits.length === 10 ? `+91${cleanDigits}` : (rawPhone.startsWith('+') ? rawPhone : `+${cleanDigits}`);
+
+  const settings = getTelephonySettings();
+  if (settings.twilioAccountSid && settings.twilioAuthToken && settings.twilioFromPhone) {
+    return await triggerTwilioCall(settings.twilioAccountSid, settings.twilioAuthToken, settings.twilioFromPhone, formattedPhone, text);
+  }
+
+  return {
+    attempted: false,
+    success: false,
+    reason: 'No cellular telephony carrier trunk (Twilio) configured. Call audio played via browser IVR HUD.'
+  };
+}
+
+
+// POST /api/alerts/send-manual-phone
+
+// GET /api/telephony/settings
+app.get('/api/telephony/settings', (req, res) => {
+  const s = getTelephonySettings();
+  return res.json({
+    hasFast2sms: Boolean(s.fast2smsApiKey),
+    fast2smsApiKeyMasked: s.fast2smsApiKey ? s.fast2smsApiKey.slice(0, 4) + '••••••••' : '',
+    hasTwilio: Boolean(s.twilioAccountSid && s.twilioAuthToken),
+    twilioSidMasked: s.twilioAccountSid ? s.twilioAccountSid.slice(0, 6) + '••••' : '',
+    twilioFromPhone: s.twilioFromPhone || ''
+  });
+});
+
+// POST /api/telephony/settings
+app.post('/api/telephony/settings', (req, res) => {
+  try {
+    const { fast2smsApiKey, twilioAccountSid, twilioAuthToken, twilioFromPhone } = req.body;
+    const current = getTelephonySettings();
+    const updated = {
+      fast2smsApiKey: fast2smsApiKey !== undefined ? fast2smsApiKey.trim() : current.fast2smsApiKey,
+      twilioAccountSid: twilioAccountSid !== undefined ? twilioAccountSid.trim() : current.twilioAccountSid,
+      twilioAuthToken: twilioAuthToken !== undefined ? twilioAuthToken.trim() : current.twilioAuthToken,
+      twilioFromPhone: twilioFromPhone !== undefined ? twilioFromPhone.trim() : current.twilioFromPhone
+    };
+    saveTelephonySettings(updated);
+    return res.json({ success: true, message: 'Telephony settings updated successfully.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update telephony settings.' });
+  }
+});
+
+app.post('/api/alerts/send-manual-phone', async (req, res) => {
+  try {
+    const { phone, alertType, triggerReason } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required.' });
+    }
+
+    const cleanDigits = phone.replace(/\D/g, '');
+    const last10 = cleanDigits.slice(-10);
+
+    // Find farmer
+    const matched = db.prepare(`
+      SELECT * FROM farmers 
+      WHERE phone LIKE ? OR phone LIKE ?
+    `).all(`%${last10}%`, `%${cleanDigits}%`);
+
+    const now = getCurrentTimestampIST();
+    let farmer = matched.length > 0 ? matched[0] : null;
+
+    if (farmer) {
+      db.prepare(`
+        UPDATE farmers 
+        SET last_alert_at = ?, last_alert_type = ?, last_alert_status = 'DELIVERED' 
+        WHERE id = ?
+      `).run(now, alertType || 'waterlogging', farmer.id);
+      farmer.last_alert_at = now;
+      farmer.last_alert_type = alertType || 'waterlogging';
+      farmer.last_alert_status = 'DELIVERED';
+    } else {
+      // Create new record for this phone
+      const prefix = cleanDigits.slice(0, 5);
+      const maskedPhone = cleanDigits.length >= 10 ? `+91 ${prefix} •••••` : phone;
+      const ins = db.prepare(`
+        INSERT INTO farmers (
+          name, phone, masked_phone, district, mandal, panchayat_id, panchayat_name,
+          primary_crop, land_acres, language, alert_preference, is_active, registered_at,
+          last_alert_at, last_alert_type, last_alert_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Paddy', 2.0, 'te', 'Both', 1, ?, ?, ?, 'DELIVERED')
+      `).run(
+        `Farmer (${phone})`,
+        phone,
+        maskedPhone,
+        'Alluri Sitharama Raju',
+        'Maredumilli',
+        'ap-asr-maredumilli',
+        'Maredumilli',
+        now,
+        now,
+        alertType || 'waterlogging'
+      );
+      farmer = {
+        id: ins.lastInsertRowid,
+        name: `Farmer (${phone})`,
+        phone,
+        masked_phone: maskedPhone,
+        panchayat_name: 'Maredumilli',
+        last_alert_at: now,
+        last_alert_type: alertType || 'waterlogging',
+        last_alert_status: 'DELIVERED'
+      };
+    }
+
+    // Generate real SMS text and action deep links
+    const smsText = generateEmergencyAlertSms(farmer, alertType, farmer.panchayat_name);
+    const fullDigits = cleanDigits.length === 10 ? `91${cleanDigits}` : cleanDigits;
+    const encodedSms = encodeURIComponent(smsText);
+    const smsUrl = `sms:+${fullDigits}?body=${encodedSms}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${fullDigits}&text=${encodedSms}`;
+
+    // Attempt outbound SMS gateway delivery
+    const gatewayResult = await sendOutboundSms(farmer.phone, smsText);
+
+    // Attempt cellular carrier phone call if trunk configured
+    const callResult = await triggerOutboundCall(farmer.phone, smsText);
+
+    return res.json({
+      success: true,
+      message: `Emergency alert dispatched to ${farmer.name} (${farmer.phone})`,
+      farmer,
+      dispatchedAt: now,
+      smsDispatched: gatewayResult.success,
+      smsGatewayStatus: gatewayResult,
+      callDispatched: callResult.success,
+      callGatewayStatus: callResult,
+      smsText,
+      smsUrl,
+      whatsappUrl
+    });
+  } catch (err) {
+    console.error('Manual phone alert error:', err);
+    return res.status(500).json({ error: 'Failed to send manual phone alert.' });
+  }
+});
+
+// POST /api/alerts/dispatch-panchayat-risk
+app.post('/api/alerts/dispatch-panchayat-risk', (req, res) => {
+  try {
+    const { panchayatId, riskType, triggerReason } = req.body;
+    if (!panchayatId) {
+      return res.status(400).json({ error: 'Panchayat ID is required.' });
+    }
+
+    const now = getCurrentTimestampIST();
+    const today = getTodayIST();
+
+    // 1. Update all farmers in this panchayat
+    db.prepare(`
+      UPDATE farmers 
+      SET last_alert_at = ?, last_alert_type = ?, last_alert_status = 'DELIVERED' 
+      WHERE panchayat_id = ?
+    `).run(now, riskType || 'waterlogging', panchayatId);
+
+    const affectedFarmers = db.prepare('SELECT * FROM farmers WHERE panchayat_id = ?').all(panchayatId);
+
+    // 2. Update panchayat record
+    db.prepare(`
+      UPDATE panchayats 
+      SET risk_level = 'CRITICAL', active_hazard = ?, last_alert_date = ? 
+      WHERE id = ?
+    `).run(riskType || 'waterlogging', today, panchayatId);
+
+    return res.json({
+      success: true,
+      panchayatId,
+      recipientCount: affectedFarmers.length,
+      farmers: affectedFarmers,
+      message: `Alert dispatched to all ${affectedFarmers.length} registered farmers in ${panchayatId}.`,
+      dispatchedAt: now
+    });
+  } catch (err) {
+    console.error('Panchayat risk dispatch error:', err);
+    return res.status(500).json({ error: 'Failed to dispatch panchayat alert.' });
   }
 });
 

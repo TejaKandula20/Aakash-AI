@@ -6,6 +6,7 @@ export default function UserDailyAlertCard({
   todayDate,
   dailyAlertStatus,
   onOpenCallHUD,
+  onTestAutomatedAlert,
   currentLang = 'en',
   t = {}
 }) {
@@ -49,7 +50,18 @@ export default function UserDailyAlertCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+          {onTestAutomatedAlert && (
+            <button
+              onClick={onTestAutomatedAlert}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md shadow-rose-600/30 transition-all active:scale-95 animate-pulse"
+              title="Test real automated emergency alert (Phone Call, SMS & Device Notification)"
+            >
+              <PhoneCall className="w-4 h-4" />
+              <span>{currentLang === 'te' ? '⚡ కాల్ & SMS టెస్ట్ చేయండి' : '⚡ Test Alert (Call & SMS)'}</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenCallHUD}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-all active:scale-95"

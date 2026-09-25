@@ -1,3 +1,4 @@
+import { databaseService } from '../data/databaseService';
 const API_BASE = '/api';
 
 // Seeded credentials for offline & static GitHub Pages hosting
@@ -262,7 +263,7 @@ class ApiService {
     // 1. Auth Login
     if (endpoint === '/auth/login' && method === 'POST') {
       try {
-        return Promise.resolve(this._simulateLogin(body.email, body.password));
+        return Promise.resolve(this._simulateLogin(body.email, body.password, body.locationData));
       } catch (e) {
         return Promise.reject(e);
       }
@@ -398,6 +399,37 @@ class ApiService {
       });
     }
 
+    // 11. Database: Farmers
+    if (endpoint.startsWith('/database/farmers')) {
+      if (method === 'GET') {
+        return Promise.resolve({ 
+          farmers: databaseService.getFarmers(), 
+          count: databaseService.farmers.length 
+        });
+      }
+      if (method === 'POST') {
+        const farmer = databaseService.addFarmer(body);
+        return Promise.resolve({ success: true, farmer });
+      }
+    }
+
+    // 12. Database: Panchayats
+    if (endpoint.startsWith('/database/panchayats') && method === 'GET') {
+      return Promise.resolve({ panchayats: databaseService.getPanchayats() });
+    }
+
+    // 13. Alerts: Manual Phone Alert
+    if (endpoint === '/alerts/send-manual-phone' && method === 'POST') {
+      const res = databaseService.dispatchManualAlertByPhone(body.phone, body.alertType, body.triggerReason);
+      return Promise.resolve(res);
+    }
+
+    // 14. Alerts: Dispatch Panchayat Risk
+    if (endpoint === '/alerts/dispatch-panchayat-risk' && method === 'POST') {
+      const res = databaseService.dispatchPanchayatRiskAlert(body.panchayatId, body.riskType, body.triggerReason);
+      return Promise.resolve(res);
+    }
+
     return Promise.resolve({ success: true, message: 'Simulated endpoint' });
   }
 
@@ -520,6 +552,81 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(alertData)
     });
+  }
+
+  // Database API
+  async getFarmers(filter = {}) {
+    if (this._isStaticHost()) {
+      return { farmers: databaseService.getFarmers(filter), count: databaseService.farmers.length };
+    }
+    const params = new URLSearchParams(filter).toString();
+    const ep = '/database/farmers' + (params ? '?' + params : '');
+    try {
+      return await this.request(ep);
+    } catch (e) {
+      return { farmers: databaseService.getFarmers(filter), count: databaseService.farmers.length };
+    }
+  }
+
+  async addFarmer(farmerData) {
+    if (this._isStaticHost()) {
+      return { success: true, farmer: databaseService.addFarmer(farmerData) };
+    }
+    try {
+      const res = await this.request('/database/farmers', {
+        method: 'POST',
+        body: JSON.stringify(farmerData)
+      });
+      databaseService.addFarmer(farmerData);
+      return res;
+    } catch (e) {
+      return { success: true, farmer: databaseService.addFarmer(farmerData) };
+    }
+  }
+
+  async getPanchayats(filter = {}) {
+    if (this._isStaticHost()) {
+      return { panchayats: databaseService.getPanchayats(filter) };
+    }
+    const params = new URLSearchParams(filter).toString();
+    const ep = '/database/panchayats' + (params ? '?' + params : '');
+    try {
+      return await this.request(ep);
+    } catch (e) {
+      return { panchayats: databaseService.getPanchayats(filter) };
+    }
+  }
+
+  async sendManualPhoneAlert(phone, alertType = 'waterlogging', triggerReason = '') {
+    if (this._isStaticHost()) {
+      return databaseService.dispatchManualAlertByPhone(phone, alertType, triggerReason);
+    }
+    try {
+      const res = await this.request('/alerts/send-manual-phone', {
+        method: 'POST',
+        body: JSON.stringify({ phone, alertType, triggerReason })
+      });
+      databaseService.dispatchManualAlertByPhone(phone, alertType, triggerReason);
+      return res;
+    } catch (e) {
+      return databaseService.dispatchManualAlertByPhone(phone, alertType, triggerReason);
+    }
+  }
+
+  async dispatchPanchayatRisk(panchayatId, riskType = 'waterlogging', triggerReason = '') {
+    if (this._isStaticHost()) {
+      return databaseService.dispatchPanchayatRiskAlert(panchayatId, riskType, triggerReason);
+    }
+    try {
+      const res = await this.request('/alerts/dispatch-panchayat-risk', {
+        method: 'POST',
+        body: JSON.stringify({ panchayatId, riskType, triggerReason })
+      });
+      databaseService.dispatchPanchayatRiskAlert(panchayatId, riskType, triggerReason);
+      return res;
+    } catch (e) {
+      return databaseService.dispatchPanchayatRiskAlert(panchayatId, riskType, triggerReason);
+    }
   }
 }
 

@@ -9,17 +9,22 @@ export default function IncomingCallHUD({
   isOpen,
   onClose,
   selectedPanchayat,
+  panchayat,
   currentLang = 'en',
   alertId = 'waterlogging',
+  alertType,
   onOpenAlertSimulator
 }) {
+  const activePanchayat = selectedPanchayat || panchayat || { name: 'Maredumilli', localName: 'మారేడుమిల్లి', district: 'Alluri Sitharama Raju' };
+  const effectiveAlertId = alertType || alertId || 'waterlogging';
+
   const [callState, setCallState] = useState('ringing'); // 'ringing' | 'connected'
   const [seconds, setSeconds] = useState(0);
   const [autoAnswerCount, setAutoAnswerCount] = useState(6);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const autoTimerRef = useRef(null);
 
-  const activeAlert = ALERT_PRESETS.find(a => a.id === alertId) || ALERT_PRESETS[0];
+  const activeAlert = ALERT_PRESETS.find(a => a.id === effectiveAlertId) || ALERT_PRESETS[0];
   const langObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
   const localized = getLocalizedAlert(activeAlert, currentLang);
   const callScript = localized.callScript;
@@ -181,7 +186,7 @@ export default function IncomingCallHUD({
             </h2>
             
             <p className="text-xs sm:text-sm text-slate-300 font-medium">
-              {selectedPanchayat.localName ? selectedPanchayat.localName : selectedPanchayat.name} ({selectedPanchayat.district})
+              {activePanchayat.localName ? activePanchayat.localName : activePanchayat.name} ({activePanchayat.district})
             </p>
             <p className="text-[11px] text-emerald-400 font-mono">
               IMD Automated Vernacular Broadcast • Toll-Free 1800-AAKASH

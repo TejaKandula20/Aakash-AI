@@ -60,12 +60,18 @@ export const PANCHAYATS_DATA = getAllPanchayats();
 
 export function resolvePanchayat(idOrPartial) {
   if (!idOrPartial) return PANCHAYATS_DATA[0];
-  const exact = PANCHAYATS_DATA.find(p => p.id === idOrPartial);
+  const query = String(idOrPartial).toLowerCase().trim();
+  if (!query) return PANCHAYATS_DATA[0];
+  const exact = PANCHAYATS_DATA.find(p => p.id && p.id.toLowerCase() === query);
   if (exact) return exact;
-  const partial = PANCHAYATS_DATA.find(p => p.id.includes(idOrPartial) || (p.taluk && p.taluk.toLowerCase().includes(idOrPartial.toLowerCase())));
+  const partial = PANCHAYATS_DATA.find(p => 
+    (p.id && p.id.toLowerCase().includes(query)) || 
+    (p.taluk && p.taluk.toLowerCase().includes(query)) ||
+    (p.mandal && p.mandal.toLowerCase().includes(query)) ||
+    (p.name && p.name.toLowerCase().includes(query)) ||
+    (p.localName && p.localName.toLowerCase().includes(query))
+  );
   if (partial) return partial;
-  const byName = PANCHAYATS_DATA.find(p => p.name.toLowerCase().includes(idOrPartial.toLowerCase()));
-  if (byName) return byName;
   return PANCHAYATS_DATA[0];
 }
 

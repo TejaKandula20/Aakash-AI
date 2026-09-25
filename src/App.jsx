@@ -18,11 +18,13 @@ import AdminDashboard from './components/AdminDashboard';
 import UserDailyAlertCard from './components/UserDailyAlertCard';
 
 import { PANCHAYATS_DATA, resolvePanchayat } from './data/panchayats';
+import { databaseService } from './data/databaseService';
 import { getWeatherDataForPanchayat } from './data/weatherData';
 import { streamingWeatherService } from './utils/streamingWeatherService';
 import { ringtoneService } from './utils/ringtoneService';
 import { speechService } from './utils/speechService';
 import { apiService } from './utils/apiService';
+import { notificationService } from './utils/notificationService';
 import { TRANSLATIONS, LANGUAGES } from './data/translations';
 import { Mic, PhoneCall, Sparkles, ShieldCheck, Globe, Check, ShieldAlert, BellRing, LogIn, UserCheck } from 'lucide-react';
 
@@ -41,7 +43,7 @@ export default function App() {
   // Authentication State
   const [currentUser, setCurrentUser] = useState(() => apiService.user);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isAdminView, setIsAdminView] = useState(false);
+  const [isAdminView, setIsAdminView] = useState(() => Boolean(apiService.user?.role === 'admin'));
 
   const handleLanguageChange = useCallback((newLang) => {
     if (!newLang) return;
@@ -109,13 +111,13 @@ export default function App() {
         try {
           const freshUser = await apiService.getMe();
           setCurrentUser(freshUser);
+          if (freshUser.assignedPanchayatId) {
+            setSelectedPanchayat(resolvePanchayat(freshUser.assignedPanchayatId));
+          }
           if (freshUser.role === 'admin') {
             setIsAdminView(true);
           } else {
             setIsAdminView(false);
-            if (freshUser.assignedPanchayatId) {
-              setSelectedPanchayat(resolvePanchayat(freshUser.assignedPanchayatId));
-            }
           }
         } catch (e) {
           console.warn('[AUTH] Token verification failed:', e.message);
@@ -142,8 +144,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const registeredPanchayat = resolvePanchayat(currentUser?.assignedPanchayatId);
-    fetchDailyAlertStatus(registeredPanchayat.id);
+    if (currentUser?.assignedPanchayatId) {
+      const registeredPanchayat = resolvePanchayat(currentUser.assignedPanchayatId);
+      fetchDailyAlertStatus(registeredPanchayat.id);
+    }
   }, [currentUser?.assignedPanchayatId, fetchDailyAlertStatus]);
 
   // Fetch live hourly forecast from Open-Meteo for selected panchayat (1-hour intervals)
@@ -219,13 +223,21 @@ export default function App() {
 
       const triggerServerDaily = async () => {
         try {
+          // Dispatch risk alert to ALL registered farmers in this panchayat in the local database
+          const targetFarmerCount = databaseService.getFarmersCountByPanchayat(registeredPanchayat.id);
+          databaseService.dispatchPanchayatRiskAlert(
+            registeredPanchayat.id,
+            riskType,
+            `Autonomous sensor threshold reached (Rain: ${rain}mm, Soil: ${soil}%, Temp: ${temp}°C)`
+          );
+
           const res = await apiService.triggerDailyAlert({
             panchayatId: registeredPanchayat.id, panchayatName: registeredPanchayat.localName || registeredPanchayat.name,
             riskType,
             riskLevel: 'CRITICAL',
             triggerReason: `Autonomous sensor threshold reached (Rain: ${rain}mm, Soil: ${soil}%, Temp: ${temp}°C)`,
             channel: 'VOICE_CALL',
-            recipientCount: 4
+            recipientCount: Math.max(targetFarmerCount, 1)
           });
 
           // Server approved first-time execution today!
@@ -277,6 +289,9 @@ export default function App() {
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
+    if (user.assignedPanchayatId) {
+      setSelectedPanchayat(resolvePanchayat(user.assignedPanchayatId));
+    }
     if (user.preferredLanguage && ['en', 'te', 'hi', 'ta', 'mr', 'kn', 'pa', 'bn'].includes(user.preferredLanguage)) {
       handleLanguageChange(user.preferredLanguage);
     }
@@ -284,9 +299,6 @@ export default function App() {
       setIsAdminView(true);
     } else {
       setIsAdminView(false);
-      if (user.assignedPanchayatId) {
-        setSelectedPanchayat(resolvePanchayat(user.assignedPanchayatId));
-      }
     }
     fetchDailyAlertStatus(user.assignedPanchayatId || selectedPanchayat.id);
   };
@@ -358,7 +370,7 @@ export default function App() {
             />
 
             {/* Browsing Banner when viewing a Panchayat other than Registered Alert Location */}
-            {selectedPanchayat.id !== registeredPanchayat.id && (
+            {selectedPanchayat?.id && registeredPanchayat?.id && selectedPanchayat.id !== registeredPanchayat.id && (
               <div className="p-4 rounded-3xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-200/80 flex items-center justify-center font-bold text-amber-900 shrink-0">
@@ -390,7 +402,7 @@ export default function App() {
                   <span className="text-xs font-black uppercase tracking-wider text-slate-700">
                     {t.exploringWeatherPrompt || 'Explore Weather Forecast across all 13,326 Gram Panchayats:'}
                   </span>
-                  {selectedPanchayat.id === registeredPanchayat.id && (
+                  {selectedPanchayat?.id && registeredPanchayat?.id && selectedPanchayat.id === registeredPanchayat.id && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
                       {t.registeredHubNotice || '✓ Your Registered Alert Hub'}
                     </span>

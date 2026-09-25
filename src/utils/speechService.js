@@ -1,4 +1,6 @@
 // Web Speech API wrapper with Comprehensive Multilingual Vernacular Phonetic Engine
+// Crystal-clear native audio synthesis across all 8 Indian Languages:
+// Telugu (te), Hindi (hi), Tamil (ta), Kannada (kn), Marathi (mr), Punjabi (pa), Bengali (bn), English (en)
 
 const HINDI_0_TO_100 = [
   "शून्य", "एक", "दो", "तीन", "चार", "पांच", "छह", "सात", "आठ", "नौ", "दस",
@@ -10,9 +12,8 @@ const HINDI_0_TO_100 = [
   "इकसठ", "बासठ", "तिरसठ", "चौंसठ", "पैंसठ", "छियासठ", "सड़सठ", "अड़सठ", "उनहत्तर", "सत्तर",
   "इकहत्तर", "बहत्तर", "तिहत्तर", "चौहत्तर", "पचहत्तर", "छिहत्तर", "सतहत्तर", "अठहत्तर", "उन्यासी", "अस्सी",
   "इक्यासी", "बयासी", "तिरासी", "चौरासी", "पचासी", "छियासी", "सत्तासी", "अट्ठासी", "नवासी", "नब्बे",
-  "इक्यानवे", "बानवे", "तिobjectरानवे", "चौरानवे", "पंचानवे", "छियानवे", "सत्तानवे", "अट्ठानवे", "निन्यानवे", "सौ"
+  "इक्यानवे", "बानवे", "तिरानवे", "चौरानवे", "पंचानवे", "छियानवे", "सत्तानवे", "अट्ठानवे", "निन्यानवे", "सौ"
 ];
-HINDI_0_TO_100[93] = "तिरानवे";
 
 // Number to Words for Indian Languages
 export function numberToWords(num, lang = 'te') {
@@ -23,7 +24,7 @@ export function numberToWords(num, lang = 'te') {
   if (lang.startsWith('hi')) return numberToHindi(num);
   if (lang.startsWith('ta')) return numberToTamil(num);
   if (lang.startsWith('kn')) return numberToKannada(num);
-  if (lang.startsWith('mr')) return numberToHindi(num); // Marathi uses Devanagari numbers
+  if (lang.startsWith('mr')) return numberToHindi(num);
   if (lang.startsWith('pa')) return numberToHindi(num);
   if (lang.startsWith('bn')) return numberToBengali(num);
   return numberToEnglish(num);
@@ -133,6 +134,13 @@ function numberToBengali(num) {
     const ten = Math.floor(num / 10);
     return rem === 0 ? tens[ten] : `${tens[ten]} ${ones[rem]}`;
   }
+  if (num < 1000) {
+    const hundred = Math.floor(num / 100);
+    const rem = num % 100;
+    const hundredWord = hundred === 1 ? "একশত" : `${ones[hundred]} শত`;
+    if (rem === 0) return hundredWord;
+    return `${hundredWord} ${numberToBengali(rem)}`;
+  }
   return num.toString();
 }
 
@@ -163,7 +171,7 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
   let result = text;
   const langKey = lang.split('-')[0].toLowerCase();
 
-  // 1. First, insert spaces between numbers and attached units/symbols (e.g. 45mm -> 45 mm, 38.5°C -> 38.5 °C)
+  // 1. First, insert spaces between numbers and attached units/symbols
   result = result.replace(/(\d+(?:\.\d+)?)\s*(°C|°|mm|km\/h|%|kPa|cm)/gi, (m, p1, p2) => p1 + " " + p2 + " ");
 
   // 2. Expand weather & agricultural units into spoken vernacular words
@@ -232,7 +240,6 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
       .replace(/\bkm\/h\b/gi, " ਕਿਲੋਮੀਟਰ ਪ੍ਰਤੀ ਘੰਟਾ ")
       .replace(/%/g, " ਪ੍ਰਤੀਸ਼ਤ ");
   } else {
-    // English default
     result = result
       .replace(/°C|°/g, " degrees Celsius ")
       .replace(/\bmm\b/gi, " millimeters ")
@@ -242,7 +249,7 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
       .replace(/\bcm\b/gi, " centimeters ");
   }
 
-  // 3. Replace decimals (e.g., 38.5 -> ముప్పై ఎనిమిది పాయింట్ ఐదు / अड़तीस दशमलव पांच)
+  // 3. Replace decimals
   const pointWord = langKey === 'te' ? "పాయింట్" : langKey === 'hi' ? "दशमलव" : langKey === 'ta' ? "புள்ளி" : langKey === 'kn' ? "ಬಿಂದು" : "point";
 
   result = result.replace(/(\d+)\.(\d+)/g, (match, whole, dec) => {
@@ -251,7 +258,7 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
     return `${wholeWords} ${pointWord} ${decDigits}`;
   });
 
-  // 4. Replace integers (e.g. 450, 38, 24, 14)
+  // 4. Replace integers
   result = result.replace(/\b(\d+)\b/g, (match, num) => {
     const parsed = parseInt(num, 10);
     if (!isNaN(parsed) && parsed <= 99999) {
@@ -266,18 +273,17 @@ export function convertMultilingualPhonetics(text, lang = 'te') {
 function sanitizeForSpeech(text) {
   if (!text) return "";
   return text
-    .replace(/[*#_~`\[\](){}<>|]/g, " ") // remove markdown & brackets
-    .replace(/https?:\/\/\S+/gi, "")     // remove URLs
-    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "") // remove emojis
+    .replace(/[*#_~`\[\](){}<>|]/g, " ")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function splitTextIntoChunks(text, maxLen = 85) {
+function splitTextIntoChunks(text, maxLen = 70) {
   text = sanitizeForSpeech(text);
   if (text.length <= maxLen) return [text];
 
-  // Split on clause/sentence boundaries: . , ! ? ; : । \n
   const sentences = text.match(/[^.,!?।;:\n]+[.,!?।;:\n]*/g) || [text];
   const chunks = [];
   let current = "";
@@ -359,35 +365,14 @@ class SpeechService {
 
     const targetPrefix = langCode.split('-')[0].toLowerCase();
 
-    // Specific protection for Telugu: NEVER select Hindi voice!
-    if (targetPrefix === 'te') {
-      let teluguVoice = this.voices.find(v => 
-        v.lang.toLowerCase() === 'te-in' || 
-        v.lang.toLowerCase().startsWith('te') ||
-        v.name.toLowerCase().includes('telugu')
-      );
-      if (teluguVoice) return teluguVoice;
-
-      let indianEnVoice = this.voices.find(v => 
-        (v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india')) &&
-        !v.lang.toLowerCase().startsWith('hi') &&
-        !v.name.toLowerCase().includes('hindi')
-      );
-      if (indianEnVoice) return indianEnVoice;
-
-      let nonHindiVoice = this.voices.find(v => !v.lang.toLowerCase().startsWith('hi') && !v.name.toLowerCase().includes('hindi'));
-      if (nonHindiVoice) return nonHindiVoice;
-    }
-
-    // Exact match for requested language
+    // Look for exact match
     let match = this.voices.find(v => v.lang.toLowerCase() === langCode.toLowerCase());
     if (match) return match;
 
-    // Secondary prefix match
+    // Look for language prefix match
     match = this.voices.find(v => v.lang.toLowerCase().startsWith(targetPrefix));
     if (match) return match;
 
-    // Match by language name in voice name
     const langNames = {
       te: 'telugu',
       hi: 'hindi',
@@ -403,13 +388,14 @@ class SpeechService {
       if (match) return match;
     }
 
-    // Default voice
-    return this.voices.find(v => v.default) || this.voices[0] || null;
+    return null;
   }
 
-  // Atomic Stop: Completely terminates any ongoing audio, speech synthesis, and pending timers
+  hasNativeVoiceForLang(langCode) {
+    return Boolean(this.getBestVoiceForLang(langCode));
+  }
+
   stop() {
-    // Invalidate active session to kill in-flight chunk loops
     this.sessionCounter++;
     this.activeSessionId = this.sessionCounter;
     this.isSpeaking = false;
@@ -438,10 +424,7 @@ class SpeechService {
   }
 
   speak(text, langCode = 'te-IN', onStart = null, onEnd = null, onError = null) {
-    // 1. Immediately cancel any active speech & pending callbacks
     this.stop();
-
-    // 2. Mutual exclusion: Stop microphone so assistant voice does not feedback into mic!
     this.stopListening();
 
     if (!text || !text.trim()) {
@@ -467,18 +450,7 @@ class SpeechService {
     const langPrefix = resolvedLang.split('-')[0].toLowerCase();
     const processedText = convertMultilingualPhonetics(text, resolvedLang);
 
-    // If on static hosting like GitHub Pages, /api/tts proxy does not exist. Use Web Speech Synthesis directly for instant speech!
-    const isStaticDeploy = typeof window !== 'undefined' && (
-      window.location.hostname.includes('github.io') ||
-      window.location.protocol === 'file:'
-    );
-
-    if (isStaticDeploy && this.synth) {
-      this.speakViaSpeechSynthesis(processedText, resolvedLang, onStart, onEnd, onError, sessionId);
-      return;
-    }
-
-    const chunks = splitTextIntoChunks(processedText, 85);
+    const chunks = splitTextIntoChunks(processedText, 70);
 
     if (chunks.length === 0) {
       this.isSpeaking = false;
@@ -489,7 +461,6 @@ class SpeechService {
     let currentIndex = 0;
 
     const playNextChunk = () => {
-      // Session guard: if another speech request started or user stopped, abort immediately
       if (this.activeSessionId !== sessionId || !this.isSpeaking) {
         return;
       }
@@ -504,11 +475,12 @@ class SpeechService {
       const chunk = chunks[currentIndex];
       currentIndex++;
 
-      const proxyUrl = `/api/tts?q=${encodeURIComponent(chunk)}&tl=${langPrefix}`;
+      // Use Google TTS direct stream without referrer header for crystal-clear native human voice
       const directUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${langPrefix}&client=tw-ob`;
+      const proxyUrl = `/api/tts?q=${encodeURIComponent(chunk)}&tl=${langPrefix}`;
 
-      // Clean single audio player pipeline
       let player = new Audio();
+      player.referrerPolicy = 'no-referrer';
       this.activePlayer = player;
       let handled = false;
 
@@ -523,7 +495,7 @@ class SpeechService {
           if (this.activeSessionId === sessionId) {
             playNextChunk();
           }
-        }, 50);
+        }, 40);
       };
 
       const fallbackToWebSpeech = () => {
@@ -543,24 +515,23 @@ class SpeechService {
 
       player.onerror = () => {
         if (handled || this.activeSessionId !== sessionId) return;
-        // Try direct URL once
+        // If directUrl failed, try proxyUrl once
         try {
-          const directPlayer = new Audio(directUrl);
-          this.activePlayer = directPlayer;
-          directPlayer.onended = finishAndNext;
-          directPlayer.onerror = fallbackToWebSpeech;
-          directPlayer.play().catch(fallbackToWebSpeech);
+          const proxyPlayer = new Audio(proxyUrl);
+          this.activePlayer = proxyPlayer;
+          proxyPlayer.onended = finishAndNext;
+          proxyPlayer.onerror = fallbackToWebSpeech;
+          proxyPlayer.play().catch(fallbackToWebSpeech);
         } catch (e) {
           fallbackToWebSpeech();
         }
       };
 
       try {
-        player.src = proxyUrl;
+        player.src = directUrl;
         const playPromise = player.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
-            // Autoplay restriction or network error -> try direct or fallback
             if (!handled && this.activeSessionId === sessionId) {
               player.onerror();
             }
@@ -582,11 +553,11 @@ class SpeechService {
     }
 
     try {
-      this.synth.cancel(); // Clear any queued utterances
+      this.synth.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = langCode;
-      utterance.rate = 0.92;
+      utterance.rate = 0.90;
       utterance.pitch = 1.0;
 
       const voice = this.getBestVoiceForLang(langCode);
@@ -626,7 +597,6 @@ class SpeechService {
   }
 
   listen(langCode = 'te-IN', onResult, onError, onEnd) {
-    // 1. Mutual exclusion: Stop any playing audio before listening
     this.stop();
 
     if (!this.recognition) {

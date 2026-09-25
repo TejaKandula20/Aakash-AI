@@ -10,6 +10,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('[GLOBAL BOOT ERROR]', e);
+        var el = document.getElementById('global-boot-error');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'global-boot-error';
+          el.style = 'position:fixed;top:16px;left:16px;right:16px;background:#fef2f2;border:2px solid #ef4444;padding:16px;border-radius:16px;color:#991b1b;font-family:system-ui,sans-serif;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.15);';
+          el.innerHTML = '<h3 style="margin:0 0 8px 0;font-weight:900;">⚠️ Application Load Alert</h3><pre style="white-space:pre-wrap;font-family:monospace;font-size:12px;margin:0;background:#fff;padding:10px;border-radius:8px;border:1px solid #fecaca;">' + (e.message || e) + '\n' + (e.error ? e.error.stack : '') + '</pre><button onclick="localStorage.clear();location.reload();" style="margin-top:12px;background:#dc2626;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:bold;">Clear Cache & Reload</button>';
+          document.body.appendChild(el);
+        }
+      });
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">
     <div id="root"></div>

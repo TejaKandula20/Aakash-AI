@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { databaseService } from '../data/databaseService';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PhoneCall, PhoneOff, MessageSquare, AlertTriangle, Droplets, Sun, Wind, BellRing, CheckCircle, ShieldAlert, Volume2, RotateCcw, X } from 'lucide-react';
 import { ALERT_PRESETS, getLocalizedAlert } from '../data/alertPresets';
 import { speechService } from '../utils/speechService';
 import { ringtoneService } from '../utils/ringtoneService';
+import { notificationService } from '../utils/notificationService';
 import { LANGUAGES } from '../data/translations';
 
 export default function AlertSimulator({
@@ -15,6 +17,10 @@ export default function AlertSimulator({
   t
 }) {
   const [selectedAlertId, setSelectedAlertId] = useState(initialAlertId);
+  const [recipientPhone, setRecipientPhone] = useState('+91 98480 11234');
+  const matchedFarmer = useMemo(() => {
+    return databaseService.getFarmerByPhone(recipientPhone);
+  }, [recipientPhone]);
   const [callState, setCallState] = useState(autoRinging ? 'ringing' : 'idle'); // 'idle' | 'ringing' | 'connected'
   const [callSeconds, setCallSeconds] = useState(0);
   const [showSms, setShowSms] = useState(true);
@@ -207,7 +213,33 @@ export default function AlertSimulator({
             </div>
           </div>
 
-          {/* Step 2: Interactive Simulation Grid (Phone Call vs SMS) */}
+          
+          {/* Recipient Phone Selection for Direct Alert */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Recipient Farmer Mobile Number:
+                </label>
+                <div className="text-[11px] text-slate-500">
+                  {matchedFarmer 
+                    ? `✅ Registered Farmer Found: ${matchedFarmer.name} (${matchedFarmer.primaryCrop}, ${matchedFarmer.panchayatName})`
+                    : `📱 Enter any registered or new farmer mobile number to test direct delivery`}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="tel"
+                  value={recipientPhone}
+                  onChange={(e) => setRecipientPhone(e.target.value)}
+                  placeholder="e.g. +91 98480 11234"
+                  className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 w-48"
+                />
+              </div>
+            </div>
+          </div>
+{/* Step 2: Interactive Simulation Grid (Phone Call vs SMS) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             
             {/* Phone Call Simulator Box */}
