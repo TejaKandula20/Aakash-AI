@@ -444,7 +444,6 @@ export default function App() {
               dailyAlertStatus={dailyAlertStatus}
               registeredPhone={currentUser?.phoneNumber || currentUser?.phone || '9392705998'}
               onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
-              onTestAutomatedAlert={handleTestAutomatedAlert}
               currentLang={currentLang}
               t={t}
             />
