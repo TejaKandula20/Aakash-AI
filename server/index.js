@@ -237,6 +237,201 @@ app.post('/api/auth/logout', authenticate, (req, res) => {
 });
 
 // ==========================================
+// 1B. IN-MEMORY OTP STORE & FORGOT PASSWORD ENDPOINTS
+// ==========================================
+const otpStore = new Map();
+
+function cleanExpiredOtps() {
+  const now = Date.now();
+  for (const [key, value] of otpStore.entries()) {
+    if (value.expiresAt < now) {
+      otpStore.delete(key);
+    }
+  }
+}
+
+// POST /api/auth/send-otp (Supports both 'mobile' and 'email')
+app.post('/api/auth/send-otp', async (req, res) => {
+  try {
+    const { destination, method } = req.body;
+    if (!destination) {
+      return res.status(400).json({ error: 'Mobile number or email address is required.' });
+    }
+
+    const type = method === 'email' ? 'email' : 'mobile';
+    cleanExpiredOtps();
+
+    let user = null;
+    let normalizedDest = '';
+
+    if (type === 'email') {
+      normalizedDest = destination.trim().toLowerCase();
+      const users = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').all(normalizedDest);
+      if (users.length > 0) {
+        user = users[0];
+      }
+    } else {
+      const cleanDigits = destination.replace(/\D/g, '');
+      const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+      normalizedDest = last10 || cleanDigits;
+
+      const users = db.prepare('SELECT * FROM users WHERE phone_number LIKE ?').all(`%${last10}%`);
+      if (users.length > 0) {
+        user = users[0];
+      } else {
+        const farmers = db.prepare('SELECT * FROM farmers WHERE phone LIKE ?').all(`%${last10}%`);
+        if (farmers.length > 0) {
+          user = {
+            id: null,
+            farmerId: farmers[0].id,
+            username: farmers[0].name,
+            phone_number: farmers[0].phone,
+            email: `${last10}@aakash.gov.in`
+          };
+        }
+      }
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        error: `No registered account found with ${type === 'email' ? 'email: ' + destination : 'mobile number: ' + destination}. Please check your credentials.`
+      });
+    }
+
+    // Generate 6-digit OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    const storeKey = `${type}:${normalizedDest}`;
+    otpStore.set(storeKey, {
+      code: otpCode,
+      destination: normalizedDest,
+      originalDestination: destination,
+      type,
+      user,
+      expiresAt
+    });
+
+    if (type === 'mobile') {
+      const smsBody = `[ఆకాశ్ AI] Your verification code for password reset is: ${otpCode}. Valid for 10 mins. Helpline: 1800-AAKASH`;
+      try {
+        await sendOutboundSms(destination, smsBody);
+      } catch (e) {
+        console.warn('SMS dispatch error:', e.message);
+      }
+      console.log(`[AUTH-OTP] Generated SMS OTP ${otpCode} for ${destination}`);
+    } else {
+      console.log(`[AUTH-OTP] Generated Email OTP ${otpCode} for ${destination}`);
+    }
+
+    return res.json({
+      success: true,
+      message: `Verification code sent to ${destination} via ${type === 'email' ? 'Email' : 'SMS'}.`,
+      otpDemo: otpCode, // Provided for instant dev testing & UI display
+      method: type,
+      destination
+    });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    return res.status(500).json({ error: 'Failed to generate verification code.' });
+  }
+});
+
+// POST /api/auth/reset-password
+app.post('/api/auth/reset-password', (req, res) => {
+  try {
+    const { destination, method, otp, newPassword } = req.body;
+    if (!destination || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Destination, OTP code, and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const type = method === 'email' ? 'email' : 'mobile';
+    let normalizedDest = '';
+    if (type === 'email') {
+      normalizedDest = destination.trim().toLowerCase();
+    } else {
+      const cleanDigits = destination.replace(/\D/g, '');
+      normalizedDest = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+    }
+
+    cleanExpiredOtps();
+    const storeKey = `${type}:${normalizedDest}`;
+    const stored = otpStore.get(storeKey);
+
+    if (!stored) {
+      return res.status(400).json({ error: 'No OTP requested for this destination or OTP expired. Please request a new code.' });
+    }
+
+    if (String(stored.code).trim() !== String(otp).trim()) {
+      return res.status(400).json({ error: 'Incorrect OTP code entered. Please check and try again.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(storeKey);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new code.' });
+    }
+
+    const { hash, salt } = hashPassword(newPassword);
+    const now = getCurrentTimestampIST();
+
+    // Check if user exists in users table
+    let userRow = null;
+    if (type === 'email') {
+      userRow = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').all(normalizedDest)[0];
+    } else {
+      userRow = db.prepare('SELECT * FROM users WHERE phone_number LIKE ?').all(`%${normalizedDest}%`)[0];
+    }
+
+    if (userRow) {
+      db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, userRow.id);
+      logAudit(userRow.id, userRow.username, userRow.role, 'PASSWORD_RESET', `Password reset successfully via ${type} OTP`, req.ip);
+    } else {
+      // User registered as farmer; create user account so they can log in
+      const farmers = db.prepare('SELECT * FROM farmers WHERE phone LIKE ?').all(`%${normalizedDest}%`);
+      const farmer = farmers[0];
+      const name = farmer ? farmer.name : `Farmer ${normalizedDest}`;
+      const email = `${normalizedDest}@aakash.gov.in`;
+
+      const ins = db.prepare(`
+        INSERT INTO users (
+          email, username, password_hash, salt, role,
+          assigned_panchayat_id, assigned_panchayat_name, assigned_district, assigned_mandal,
+          phone_number, preferred_language, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        email,
+        name,
+        hash,
+        salt,
+        'user',
+        farmer ? farmer.panchayat_id : 'ap-asr-maredumilli',
+        farmer ? farmer.panchayat_name : 'Maredumilli',
+        farmer ? farmer.district : 'Alluri Sitharama Raju',
+        farmer ? farmer.mandal : 'Maredumilli',
+        farmer ? farmer.phone : normalizedDest,
+        farmer ? farmer.language : 'te',
+        now
+      );
+      logAudit(ins.lastInsertRowid, name, 'user', 'PASSWORD_RESET_ACCOUNT_CREATED', `Account provisioned & password set via ${type} OTP`, req.ip);
+    }
+
+    otpStore.delete(storeKey);
+
+    return res.json({
+      success: true,
+      message: 'Password has been reset successfully! You can now log in.'
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// ==========================================
 // 2. USER DASHBOARD & AUTHORIZED DATA
 // ==========================================
 
@@ -661,9 +856,39 @@ app.post('/api/database/farmers', (req, res) => {
     }
 
     const cleanDigits = phone.replace(/\D/g, '');
+    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
     const prefix = cleanDigits.slice(0, 5);
     const maskedPhone = cleanDigits.length >= 10 ? `+91 ${prefix} •••••` : phone;
     const now = getCurrentTimestampIST();
+
+    // Check if farmer already exists with this phone number to prevent duplicate IDs
+    const existing = db.prepare('SELECT id FROM farmers WHERE phone LIKE ? OR phone LIKE ?').all(`%${last10}%`, cleanDigits);
+    if (existing.length > 0) {
+      const existingId = existing[0].id;
+      db.prepare(`
+        UPDATE farmers SET 
+          name = ?, phone = ?, masked_phone = ?, district = ?, mandal = ?,
+          panchayat_id = ?, panchayat_name = ?, primary_crop = ?,
+          land_acres = ?, language = ?, alert_preference = ?
+        WHERE id = ?
+      `).run(
+        name.trim(),
+        phone.trim(),
+        maskedPhone,
+        district || 'Alluri Sitharama Raju',
+        mandal || 'Maredumilli',
+        panchayatId || 'ap-asr-maredumilli',
+        panchayatName || 'Maredumilli',
+        primaryCrop || 'Paddy',
+        parseFloat(landAcres) || 2.5,
+        language || 'te',
+        alertPreference || 'Both',
+        existingId
+      );
+
+      const updatedFarmer = db.prepare('SELECT * FROM farmers WHERE id = ?').all(existingId)[0];
+      return res.status(200).json({ success: true, farmer: updatedFarmer, updated: true });
+    }
 
     const result = db.prepare(`
       INSERT INTO farmers (
@@ -706,6 +931,111 @@ app.post('/api/database/farmers', (req, res) => {
   } catch (err) {
     console.error('Create farmer error:', err);
     return res.status(500).json({ error: 'Failed to register farmer.' });
+  }
+});
+
+// PUT /api/database/farmers/:id (Admin edit farmer details)
+app.put('/api/database/farmers/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const existing = db.prepare('SELECT * FROM farmers WHERE id = ?').all(id);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Farmer record not found.' });
+    }
+
+    const curr = existing[0];
+    const { name, phone, district, mandal, panchayatId, panchayatName, primaryCrop, landAcres, language, alertPreference, isActive } = req.body;
+
+    const newPhone = phone !== undefined ? phone.trim() : curr.phone;
+    const cleanDigits = newPhone.replace(/\D/g, '');
+    const prefix = cleanDigits.slice(0, 5);
+    const maskedPhone = cleanDigits.length >= 10 ? `+91 ${prefix} •••••` : newPhone;
+
+    db.prepare(`
+      UPDATE farmers SET
+        name = ?, phone = ?, masked_phone = ?, district = ?, mandal = ?,
+        panchayat_id = ?, panchayat_name = ?, primary_crop = ?,
+        land_acres = ?, language = ?, alert_preference = ?, is_active = ?
+      WHERE id = ?
+    `).run(
+      name !== undefined ? name.trim() : curr.name,
+      newPhone,
+      maskedPhone,
+      district !== undefined ? district : curr.district,
+      mandal !== undefined ? mandal : curr.mandal,
+      panchayatId !== undefined ? panchayatId : curr.panchayat_id,
+      panchayatName !== undefined ? panchayatName : curr.panchayat_name,
+      primaryCrop !== undefined ? primaryCrop : curr.primary_crop,
+      landAcres !== undefined ? parseFloat(landAcres) : curr.land_acres,
+      language !== undefined ? language : curr.language,
+      alertPreference !== undefined ? alertPreference : curr.alert_preference,
+      isActive !== undefined ? (isActive ? 1 : 0) : curr.is_active,
+      id
+    );
+
+    const updated = db.prepare('SELECT * FROM farmers WHERE id = ?').all(id)[0];
+    return res.json({ success: true, farmer: updated });
+  } catch (err) {
+    console.error('Update farmer error:', err);
+    return res.status(500).json({ error: 'Failed to update farmer record.' });
+  }
+});
+
+// DELETE /api/database/farmers/:id (Admin delete/cleanup farmer)
+app.delete('/api/database/farmers/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const existing = db.prepare('SELECT * FROM farmers WHERE id = ?').all(id);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Farmer record not found.' });
+    }
+
+    db.prepare('DELETE FROM farmers WHERE id = ?').run(id);
+    return res.json({ success: true, message: `Farmer ID ${id} (${existing[0].name}) successfully deleted.` });
+  } catch (err) {
+    console.error('Delete farmer error:', err);
+    return res.status(500).json({ error: 'Failed to delete farmer record.' });
+  }
+});
+
+// POST /api/database/farmers/merge-duplicates
+app.post('/api/database/farmers/merge-duplicates', (req, res) => {
+  try {
+    const allFarmers = db.prepare('SELECT * FROM farmers ORDER BY id ASC').all();
+    const phoneMap = new Map();
+    const toDeleteIds = [];
+    const mergedList = [];
+
+    for (const farmer of allFarmers) {
+      const cleanDigits = (farmer.phone || '').replace(/\D/g, '');
+      const last10 = cleanDigits.slice(-10);
+      if (!last10 || last10.length < 5) continue;
+
+      if (!phoneMap.has(last10)) {
+        phoneMap.set(last10, farmer);
+      } else {
+        const primary = phoneMap.get(last10);
+        // Delete older duplicate, keep the more recently registered one
+        toDeleteIds.push(primary.id);
+        phoneMap.set(last10, farmer);
+        mergedList.push({ keptId: farmer.id, removedId: primary.id, name: farmer.name, phone: farmer.phone });
+      }
+    }
+
+    if (toDeleteIds.length > 0) {
+      const placeholders = toDeleteIds.map(() => '?').join(',');
+      db.prepare(`DELETE FROM farmers WHERE id IN (${placeholders})`).run(...toDeleteIds);
+    }
+
+    return res.json({
+      success: true,
+      message: `Cleaned up ${toDeleteIds.length} duplicate farmer entries.`,
+      mergedCount: toDeleteIds.length,
+      details: mergedList
+    });
+  } catch (err) {
+    console.error('Merge duplicates error:', err);
+    return res.status(500).json({ error: 'Failed to merge duplicate farmer records.' });
   }
 });
 

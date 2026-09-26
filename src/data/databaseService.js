@@ -256,38 +256,63 @@ class DatabaseService {
     });
   }
 
+  _deduplicateFarmerList(list) {
+    if (!Array.isArray(list)) return [];
+    const phoneMap = new Map();
+    const withoutPhone = [];
+
+    for (const f of list) {
+      const last10 = (f.phone || '').replace(/\D/g, '').slice(-10);
+      if (last10 && last10.length >= 7) {
+        if (!phoneMap.has(last10)) {
+          phoneMap.set(last10, f);
+        } else {
+          const existing = phoneMap.get(last10);
+          const preferNewer = (f.id > existing.id) || (f.registeredAt && (!existing.registeredAt || f.registeredAt > existing.registeredAt));
+          if (preferNewer) {
+            phoneMap.set(last10, f);
+          }
+        }
+      } else {
+        withoutPhone.push(f);
+      }
+    }
+    return [...Array.from(phoneMap.values()), ...withoutPhone];
+  }
+
   _loadFarmers() {
-    if (typeof window === 'undefined') return INITIAL_FARMERS;
+    if (typeof window === 'undefined') return this._deduplicateFarmerList(INITIAL_FARMERS);
     try {
       const saved = localStorage.getItem(FARMERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge with initial seeded farmers so registered ones (like prasanna) are never lost
+          const deduplicated = this._deduplicateFarmerList(parsed);
           const existingPhones = new Set(
-            parsed.map(f => (f.phone || '').replace(/\D/g, '').slice(-10))
+            deduplicated.map(f => (f.phone || '').replace(/\D/g, '').slice(-10))
           );
           const missingSeeded = INITIAL_FARMERS.filter(
             f => !existingPhones.has((f.phone || '').replace(/\D/g, '').slice(-10))
           );
-          if (missingSeeded.length > 0) {
-            const merged = [...parsed, ...missingSeeded];
+          if (missingSeeded.length > 0 || deduplicated.length !== parsed.length) {
+            const merged = this._deduplicateFarmerList([...deduplicated, ...missingSeeded]);
             try {
               localStorage.setItem(FARMERS_STORAGE_KEY, JSON.stringify(merged));
             } catch (e) {}
             return merged;
           }
-          return parsed;
+          return deduplicated;
         }
       }
     } catch (e) {
       console.warn('Could not load farmers from localStorage:', e);
     }
     // Seed initial farmers if no cache exists
+    const dedupedInitial = this._deduplicateFarmerList(INITIAL_FARMERS);
     try {
-      localStorage.setItem(FARMERS_STORAGE_KEY, JSON.stringify(INITIAL_FARMERS));
+      localStorage.setItem(FARMERS_STORAGE_KEY, JSON.stringify(dedupedInitial));
     } catch (e) {}
-    return [...INITIAL_FARMERS];
+    return [...dedupedInitial];
   }
 
   _saveFarmers() {
@@ -407,6 +432,38 @@ class DatabaseService {
     const district = farmerData.district || panchayatObj?.district || 'Alluri Sitharama Raju';
     const mandal = farmerData.mandal || panchayatObj?.taluk || panchayatObj?.mandal || 'Maredumilli';
 
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+    // Check if farmer already exists with this phone number to prevent duplicate IDs
+    if (last10 && last10.length >= 7) {
+      const existingIdx = this.farmers.findIndex(f => {
+        const fDigits = (f.phone || '').replace(/\D/g, '');
+        return fDigits.slice(-10) === last10;
+      });
+
+      if (existingIdx !== -1) {
+        this.farmers[existingIdx] = {
+          ...this.farmers[existingIdx],
+          name: farmerData.name?.trim() || this.farmers[existingIdx].name,
+          phone: rawPhone || this.farmers[existingIdx].phone,
+          cleanPhone,
+          maskedPhone,
+          district,
+          mandal,
+          panchayatId,
+          panchayatName,
+          primaryCrop: farmerData.primaryCrop || farmerData.crop || this.farmers[existingIdx].primaryCrop,
+          landAcres: parseFloat(farmerData.landAcres || farmerData.acres || this.farmers[existingIdx].landAcres),
+          language: farmerData.language || this.farmers[existingIdx].language,
+          alertPreference: farmerData.alertPreference || this.farmers[existingIdx].alertPreference
+        };
+        this._saveFarmers();
+        console.log(`[DB] Updated existing farmer record #${this.farmers[existingIdx].id} (${rawPhone}) instead of creating duplicate ID`);
+        return this.farmers[existingIdx];
+      }
+    }
+
     const newId = this.farmers.length > 0 
       ? Math.max(...this.farmers.map(f => f.id)) + 1 
       : 1;
@@ -443,9 +500,17 @@ class DatabaseService {
     const index = this.farmers.findIndex(f => f.id === id);
     if (index === -1) return null;
 
+    const current = this.farmers[index];
+    const newPhone = updateData.phone !== undefined ? updateData.phone : current.phone;
+    const cleanPhone = normalizePhoneNumber(newPhone);
+    const maskedPhone = maskPhoneNumber(newPhone);
+
     this.farmers[index] = {
-      ...this.farmers[index],
-      ...updateData
+      ...current,
+      ...updateData,
+      phone: newPhone,
+      cleanPhone,
+      maskedPhone
     };
     this._saveFarmers();
     return this.farmers[index];
@@ -455,6 +520,12 @@ class DatabaseService {
     this.farmers = this.farmers.filter(f => f.id !== id);
     this._saveFarmers();
     return true;
+  }
+
+  mergeDuplicates() {
+    this.farmers = this._deduplicateFarmerList(this.farmers);
+    this._saveFarmers();
+    return this.farmers;
   }
 
   // ==========================================

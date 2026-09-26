@@ -3,7 +3,8 @@ import {
   ShieldAlert, Users, Radio, Activity, CheckCircle2, 
   XCircle, Clock, Server, FileText, UserPlus, RefreshCw, 
   Eye, PhoneCall, AlertTriangle, Sparkles, Filter, ChevronRight,
-  Database, Layers, Search, Phone, MapPin, Sprout, Send, Plus
+  Database, Layers, Search, Phone, MapPin, Sprout, Send, Plus,
+  Edit3, Trash2, Save, X
 } from 'lucide-react';
 import { apiService } from '../utils/apiService';
 import { databaseService } from '../data/databaseService';
@@ -43,6 +44,23 @@ export default function AdminDashboard({
   const [newFarmerLang, setNewFarmerLang] = useState('te');
   const [newFarmerPref, setNewFarmerPref] = useState('Both');
   const [farmerSuccessMsg, setFarmerSuccessMsg] = useState(null);
+
+  // Farmer Edit Modal state
+  const [editingFarmer, setEditingFarmer] = useState(null);
+  const [editFarmerName, setEditFarmerName] = useState('');
+  const [editFarmerPhone, setEditFarmerPhone] = useState('');
+  const [editFarmerDistrict, setEditFarmerDistrict] = useState('Alluri Sitharama Raju');
+  const [editFarmerMandal, setEditFarmerMandal] = useState('Maredumilli');
+  const [editFarmerPanchayat, setEditFarmerPanchayat] = useState('ap-asr-maredumilli');
+  const [editFarmerCrop, setEditFarmerCrop] = useState('Paddy');
+  const [editFarmerAcres, setEditFarmerAcres] = useState('2.5');
+  const [editFarmerLang, setEditFarmerLang] = useState('te');
+  const [editFarmerPref, setEditFarmerPref] = useState('Both');
+  const [editFarmerSaving, setEditFarmerSaving] = useState(false);
+
+  // Farmer Delete Confirmation state
+  const [deletingFarmer, setDeletingFarmer] = useState(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
 
   // Panchayats database state
   const [panchayatsList, setPanchayatsList] = useState(() => databaseService.getPanchayats());
@@ -130,6 +148,31 @@ export default function AdminDashboard({
       (p.taluk.toLowerCase() === broadcastMandal.toLowerCase() || (p.mandal && p.mandal.toLowerCase() === broadcastMandal.toLowerCase()))
     );
   }, [broadcastDistrict, broadcastMandal]);
+
+  // Filtered dropdown lists for edit farmer form
+  const editFarmerAvailableMandals = useMemo(() => getMandalsByDistrict(editFarmerDistrict), [editFarmerDistrict]);
+  const editFarmerAvailablePanchayats = useMemo(() => {
+    return PANCHAYATS_DATA.filter(p => 
+      p.district.toLowerCase() === editFarmerDistrict.toLowerCase() &&
+      (p.taluk.toLowerCase() === editFarmerMandal.toLowerCase() || (p.mandal && p.mandal.toLowerCase() === editFarmerMandal.toLowerCase()))
+    );
+  }, [editFarmerDistrict, editFarmerMandal]);
+
+  // Duplicate phone detection across farmers registry
+  const duplicatePhoneCounts = useMemo(() => {
+    const counts = {};
+    for (const f of farmersList) {
+      const clean = (f.phone || '').replace(/\D/g, '').slice(-10);
+      if (clean && clean.length >= 7) {
+        counts[clean] = (counts[clean] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [farmersList]);
+
+  const hasDuplicatePhones = useMemo(() => {
+    return Object.values(duplicatePhoneCounts).some(cnt => cnt > 1);
+  }, [duplicatePhoneCounts]);
 
   // Panchayats table pagination
   const [panchayatPage, setPanchayatPage] = useState(1);
@@ -253,6 +296,83 @@ export default function AdminDashboard({
     setNewFarmerPhone('');
     setIsAddFarmerOpen(false);
     setFarmersList(databaseService.getFarmers());
+  };
+
+  // Open Edit Farmer Modal
+  const handleOpenEditFarmer = (farmer) => {
+    setEditingFarmer(farmer);
+    setEditFarmerName(farmer.name || '');
+    setEditFarmerPhone(farmer.phone || '');
+    setEditFarmerDistrict(farmer.district || 'Alluri Sitharama Raju');
+    setEditFarmerMandal(farmer.mandal || 'Maredumilli');
+    setEditFarmerPanchayat(farmer.panchayatId || 'ap-asr-maredumilli');
+    setEditFarmerCrop(farmer.primaryCrop || 'Paddy');
+    setEditFarmerAcres(farmer.landAcres ? String(farmer.landAcres) : '2.5');
+    setEditFarmerLang(farmer.language || 'te');
+    setEditFarmerPref(farmer.alertPreference || 'Both');
+  };
+
+  // Save Farmer Edits
+  const handleSaveEditFarmer = async (e) => {
+    e.preventDefault();
+    if (!editingFarmer) return;
+    setEditFarmerSaving(true);
+    try {
+      const panchayatObj = PANCHAYATS_DATA.find(p => p.id === editFarmerPanchayat) || {
+        id: editFarmerPanchayat,
+        name: editingFarmer.panchayatName || 'Maredumilli',
+        localName: editingFarmer.panchayatName || 'Maredumilli'
+      };
+
+      const updatedPayload = {
+        name: editFarmerName.trim(),
+        phone: editFarmerPhone.trim(),
+        district: editFarmerDistrict,
+        mandal: editFarmerMandal,
+        panchayatId: panchayatObj.id,
+        panchayatName: panchayatObj.localName || panchayatObj.name,
+        primaryCrop: editFarmerCrop,
+        landAcres: parseFloat(editFarmerAcres) || 2.5,
+        language: editFarmerLang,
+        alertPreference: editFarmerPref
+      };
+
+      await apiService.updateFarmer(editingFarmer.id, updatedPayload);
+      setFarmersList(databaseService.getFarmers());
+      setFarmerSuccessMsg(`Farmer #${editingFarmer.id} (${editFarmerName}) successfully updated!`);
+      setEditingFarmer(null);
+    } catch (err) {
+      setError(err.message || 'Failed to update farmer details.');
+    } finally {
+      setEditFarmerSaving(false);
+    }
+  };
+
+  // Confirm and Delete Farmer Record
+  const handleConfirmDeleteFarmer = async () => {
+    if (!deletingFarmer) return;
+    setDeleteConfirming(true);
+    try {
+      await apiService.deleteFarmer(deletingFarmer.id);
+      setFarmersList(databaseService.getFarmers());
+      setFarmerSuccessMsg(`Farmer record #${deletingFarmer.id} (${deletingFarmer.name}) successfully removed.`);
+      setDeletingFarmer(null);
+    } catch (err) {
+      setError(err.message || 'Failed to delete farmer record.');
+    } finally {
+      setDeleteConfirming(false);
+    }
+  };
+
+  // Merge Duplicate Farmer Records
+  const handleMergeAllDuplicates = async () => {
+    try {
+      await apiService.mergeDuplicateFarmers();
+      setFarmersList(databaseService.getFarmers());
+      setFarmerSuccessMsg('Duplicate farmer entries merged successfully!');
+    } catch (err) {
+      setError(err.message || 'Failed to merge duplicates.');
+    }
   };
 
   // Live lookup of farmer when phone is typed in Manual Alert section
@@ -512,14 +632,52 @@ export default function AdminDashboard({
               </select>
             </div>
 
-            <button
-              onClick={() => setIsAddFarmerOpen(!isAddFarmerOpen)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all self-start md:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Register New Farmer</span>
-            </button>
+            <div className="flex items-center gap-2.5">
+              {hasDuplicatePhones && (
+                <button
+                  type="button"
+                  onClick={handleMergeAllDuplicates}
+                  title="Merge duplicate farmer records sharing identical phone numbers"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Merge Duplicates</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setIsAddFarmerOpen(!isAddFarmerOpen)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all self-start md:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Register New Farmer</span>
+              </button>
+            </div>
           </div>
+
+          {/* Duplicate Phone Alert Banner */}
+          {hasDuplicatePhones && (
+            <div className="bg-amber-50/90 border border-amber-300 p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-sm">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-amber-950">Duplicate Farmer Registrations Detected</div>
+                  <div className="text-[11px] text-amber-800 font-medium">
+                    Multiple farmer entries share identical phone numbers. You can edit, delete, or merge them into a single unique farmer record.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleMergeAllDuplicates}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shrink-0 shadow-sm active:scale-95 transition-all self-start sm:self-auto"
+              >
+                1-Click Merge Duplicates
+              </button>
+            </div>
+          )}
 
           {/* Inline Register Farmer Form */}
           {isAddFarmerOpen && (
@@ -694,7 +852,14 @@ export default function AdminDashboard({
                       </td>
 
                       <td className="py-3 px-4 font-mono font-bold text-slate-800">
-                        {f.phone}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{f.phone}</span>
+                          {duplicatePhoneCounts[(f.phone || '').replace(/\D/g, '').slice(-10)] > 1 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                              Duplicate
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="py-3 px-4 font-bold text-emerald-800">
@@ -727,15 +892,35 @@ export default function AdminDashboard({
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => {
-                            setManualPhone(f.phone);
-                            setActiveTab('broadcast');
-                          }}
-                          className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] shadow-sm transition-all"
-                        >
-                          Direct Alert
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            title="Edit Farmer Details"
+                            onClick={() => handleOpenEditFarmer(f)}
+                            className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold border border-sky-200 transition-all flex items-center gap-1 text-[11px] active:scale-95"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            title="Delete Farmer Record"
+                            onClick={() => setDeletingFarmer(f)}
+                            className="px-2 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-200 transition-all flex items-center gap-1 text-[11px] active:scale-95"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                          <button
+                            title="Direct Alert to Farmer"
+                            onClick={() => {
+                              setManualPhone(f.phone);
+                              setActiveTab('broadcast');
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] shadow-sm transition-all flex items-center gap-1 active:scale-95"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>Alert</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -743,6 +928,215 @@ export default function AdminDashboard({
               </table>
             </div>
           </div>
+
+          {/* Edit Farmer Modal */}
+          {editingFarmer && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                      <Edit3 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">
+                        Edit Farmer Details (ID #{editingFarmer.id})
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Update live farmer data in database
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingFarmer(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEditFarmer} className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Farmer Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={editFarmerName}
+                      onChange={(e) => setEditFarmerName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Mobile Phone Number</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editFarmerPhone}
+                      onChange={(e) => setEditFarmerPhone(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">District</label>
+                    <select
+                      value={editFarmerDistrict}
+                      onChange={(e) => {
+                        setEditFarmerDistrict(e.target.value);
+                        const mandals = getMandalsByDistrict(e.target.value);
+                        if (mandals.length > 0) setEditFarmerMandal(mandals[0].name);
+                      }}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      {allDistricts.map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Mandal</label>
+                    <select
+                      value={editFarmerMandal}
+                      onChange={(e) => setEditFarmerMandal(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      {editFarmerAvailableMandals.map(m => (
+                        <option key={m.name} value={m.name}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Gram Panchayat</label>
+                    <select
+                      value={editFarmerPanchayat}
+                      onChange={(e) => setEditFarmerPanchayat(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 truncate"
+                    >
+                      {editFarmerAvailablePanchayats.map(p => (
+                        <option key={p.id} value={p.id}>{p.localName || p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Primary Crop</label>
+                    <select
+                      value={editFarmerCrop}
+                      onChange={(e) => setEditFarmerCrop(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      <option value="Paddy">Paddy (వరి)</option>
+                      <option value="Cotton">Cotton (పత్తి)</option>
+                      <option value="Chilli">Chilli (మిరప)</option>
+                      <option value="Maize">Maize (మొక్కజొన్న)</option>
+                      <option value="Groundnut">Groundnut (వేరుశనగ)</option>
+                      <option value="Tomato">Tomato (టమోటా)</option>
+                      <option value="Coffee">Coffee (కాఫీ)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Land Size (Acres)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={editFarmerAcres}
+                      onChange={(e) => setEditFarmerAcres(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Language</label>
+                    <select
+                      value={editFarmerLang}
+                      onChange={(e) => setEditFarmerLang(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      <option value="te">Telugu (తెలుగు)</option>
+                      <option value="en">English</option>
+                      <option value="hi">Hindi (हिन्दी)</option>
+                      <option value="ta">Tamil (தமிழ்)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Alert Channel</label>
+                    <select
+                      value={editFarmerPref}
+                      onChange={(e) => setEditFarmerPref(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                      <option value="Both">Both Voice Call &amp; SMS</option>
+                      <option value="Voice">Voice Call Only</option>
+                      <option value="SMS">SMS Only</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2 flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditingFarmer(null)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editFarmerSaving}
+                      className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md shadow-sky-600/20 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{editFarmerSaving ? 'Saving Changes...' : 'Save & Update Farmer'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Farmer Confirmation Modal */}
+          {deletingFarmer && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white rounded-3xl border border-rose-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div className="text-center space-y-1">
+                  <h4 className="text-base font-black text-slate-900">
+                    Delete Farmer Record #{deletingFarmer.id}?
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Are you sure you want to remove <strong className="text-slate-900">{deletingFarmer.name}</strong> ({deletingFarmer.phone}) from <strong className="text-emerald-700">{deletingFarmer.panchayatName}</strong>?
+                  </p>
+                  <p className="text-[11px] text-rose-600 font-semibold pt-1">
+                    This will permanently delete this farmer record from both the live server and local databases.
+                  </p>
+                </div>
+                <div className="flex justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeletingFarmer(null)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteConfirming}
+                    onClick={handleConfirmDeleteFarmer}
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {deleteConfirming ? 'Deleting...' : 'Yes, Delete Record'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

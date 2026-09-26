@@ -338,6 +338,54 @@ class ApiService {
       return Promise.resolve({ success: true });
     }
 
+    // 4b. Auth Send OTP
+    if (endpoint === '/auth/send-otp' && method === 'POST') {
+      const { destination, method: otpMethod } = body;
+      const code = '123456';
+      try {
+        localStorage.setItem('aakash_last_otp', JSON.stringify({ destination, code, method: otpMethod, time: Date.now() }));
+      } catch (e) {}
+      return Promise.resolve({
+        success: true,
+        message: `Verification code sent to ${destination} via ${otpMethod === 'email' ? 'Email' : 'SMS'}.`,
+        otpDemo: code,
+        method: otpMethod,
+        destination
+      });
+    }
+
+    // 4c. Auth Reset Password
+    if (endpoint === '/auth/reset-password' && method === 'POST') {
+      const { destination, newPassword } = body;
+      const cleanDigits = (destination || '').replace(/\D/g, '');
+      const last10 = cleanDigits.slice(-10);
+
+      try {
+        const users = this._getRegisteredUsers();
+        let updated = false;
+        for (const u of users) {
+          const uPhone = (u.phoneNumber || u.phone || '').replace(/\D/g, '');
+          if (u.email === destination || (last10 && uPhone.includes(last10))) {
+            u.password = newPassword;
+            updated = true;
+          }
+        }
+        if (updated) {
+          localStorage.setItem('aakash_registered_users', JSON.stringify(users));
+        } else {
+          const seeded = SEEDED_ACCOUNTS.find(u => u.email === destination || (last10 && u.phoneNumber.includes(last10)));
+          if (seeded) {
+            seeded.password = newPassword;
+          }
+        }
+      } catch (e) {}
+
+      return Promise.resolve({
+        success: true,
+        message: 'Password has been reset successfully. You can now log in.'
+      });
+    }
+
     // 5. Daily Alert Status
     if (endpoint.startsWith('/alerts/daily-status')) {
       const today = new Date().toISOString().slice(0, 10);
@@ -450,6 +498,10 @@ class ApiService {
 
     // 11. Database: Farmers
     if (endpoint.startsWith('/database/farmers')) {
+      if (endpoint === '/database/farmers/merge-duplicates' && method === 'POST') {
+        const farmers = databaseService.mergeDuplicates();
+        return Promise.resolve({ success: true, count: farmers.length, farmers });
+      }
       if (method === 'GET') {
         return Promise.resolve({ 
           farmers: databaseService.getFarmers(), 
@@ -459,6 +511,16 @@ class ApiService {
       if (method === 'POST') {
         const farmer = databaseService.addFarmer(body);
         return Promise.resolve({ success: true, farmer });
+      }
+      if (method === 'PUT') {
+        const id = parseInt(endpoint.split('/').pop(), 10);
+        const farmer = databaseService.updateFarmer(id, body);
+        return Promise.resolve({ success: true, farmer });
+      }
+      if (method === 'DELETE') {
+        const id = parseInt(endpoint.split('/').pop(), 10);
+        databaseService.deleteFarmer(id);
+        return Promise.resolve({ success: true });
       }
     }
 
@@ -676,6 +738,96 @@ class ApiService {
     } catch (e) {
       return databaseService.dispatchPanchayatRiskAlert(panchayatId, riskType, triggerReason);
     }
+  }
+
+  // Password Reset & OTP Methods
+  async sendPasswordResetOtp({ destination, method = 'mobile' }) {
+    if (this._isStaticHost()) {
+      return this._handleStaticRequest('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ destination, method })
+      });
+    }
+    try {
+      return await this.request('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ destination, method })
+      });
+    } catch (err) {
+      if (err.status === 404 || err.status === 405 || (err.message && err.message.includes('fetch'))) {
+        return this._handleStaticRequest('/auth/send-otp', {
+          method: 'POST',
+          body: JSON.stringify({ destination, method })
+        });
+      }
+      throw err;
+    }
+  }
+
+  async verifyAndResetPassword({ destination, method = 'mobile', otp, newPassword }) {
+    if (this._isStaticHost()) {
+      return this._handleStaticRequest('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ destination, method, otp, newPassword })
+      });
+    }
+    try {
+      return await this.request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ destination, method, otp, newPassword })
+      });
+    } catch (err) {
+      if (err.status === 404 || err.status === 405 || (err.message && err.message.includes('fetch'))) {
+        return this._handleStaticRequest('/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ destination, method, otp, newPassword })
+        });
+      }
+      throw err;
+    }
+  }
+
+  async updateFarmer(id, farmerData) {
+    databaseService.updateFarmer(id, farmerData);
+    if (!this._isStaticHost()) {
+      try {
+        await this.request('/database/farmers/' + id, {
+          method: 'PUT',
+          body: JSON.stringify(farmerData)
+        });
+      } catch (e) {
+        console.warn('Backend updateFarmer failed, updated locally:', e.message);
+      }
+    }
+    return { success: true, farmer: databaseService.farmers.find(f => f.id === id) };
+  }
+
+  async deleteFarmer(id) {
+    databaseService.deleteFarmer(id);
+    if (!this._isStaticHost()) {
+      try {
+        await this.request('/database/farmers/' + id, {
+          method: 'DELETE'
+        });
+      } catch (e) {
+        console.warn('Backend deleteFarmer failed, deleted locally:', e.message);
+      }
+    }
+    return { success: true };
+  }
+
+  async mergeDuplicateFarmers() {
+    databaseService.mergeDuplicates();
+    if (!this._isStaticHost()) {
+      try {
+        await this.request('/database/farmers/merge-duplicates', {
+          method: 'POST'
+        });
+      } catch (e) {
+        console.warn('Backend mergeDuplicateFarmers failed, merged locally:', e.message);
+      }
+    }
+    return { success: true, count: databaseService.farmers.length };
   }
 }
 

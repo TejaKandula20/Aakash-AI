@@ -3,7 +3,8 @@ import {
   ShieldCheck, User, Lock, Mail, ArrowRight, 
   MapPin, AlertCircle, CheckCircle2, Loader2, 
   Globe, Compass, Check, ChevronDown, UserCheck, ShieldAlert,
-  Phone, Sprout, Layers, Volume2
+  Phone, Sprout, Layers, Volume2, KeyRound, Eye, EyeOff, 
+  RefreshCw, X, Smartphone, Send
 } from 'lucide-react';
 import { apiService } from '../utils/apiService';
 import { databaseService } from '../data/databaseService';
@@ -33,6 +34,30 @@ export default function LoginPage({
   const [primaryCrop, setPrimaryCrop] = useState('Paddy');
   const [landAcres, setLandAcres] = useState('2.5');
   const [alertPreference, setAlertPreference] = useState('Both');
+
+  // Forgot Password modal state
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotMethod, setForgotMethod] = useState('mobile'); // 'mobile' | 'email'
+  const [forgotDestination, setForgotDestination] = useState('');
+  const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'verify'
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState(null);
+  const [forgotSuccess, setForgotSuccess] = useState(null);
+  const [demoOtpCode, setDemoOtpCode] = useState(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Resend OTP countdown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(c => Math.max(0, c - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Translations dictionary for current language
   const t = useMemo(() => {
@@ -106,6 +131,95 @@ export default function LoginPage({
     }
     if (typeof window !== 'undefined') {
       localStorage.setItem('aakash_preferred_lang', langCode);
+    }
+  };
+
+  const handleOpenForgotPassword = () => {
+    const raw = (identifier || '').trim();
+    if (raw.includes('@')) {
+      setForgotMethod('email');
+      setForgotDestination(raw);
+    } else if (raw) {
+      setForgotMethod('mobile');
+      setForgotDestination(raw);
+    } else {
+      setForgotMethod('mobile');
+      setForgotDestination('');
+    }
+    setForgotStep('request');
+    setForgotOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setForgotError(null);
+    setForgotSuccess(null);
+    setIsForgotPasswordOpen(true);
+  };
+
+  const handleSendOtp = async (e) => {
+    if (e) e.preventDefault();
+    const dest = forgotDestination.trim();
+    if (!dest) {
+      setForgotError(forgotMethod === 'mobile' ? 'Please enter your registered mobile number.' : 'Please enter your registered email address.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+
+    try {
+      const res = await apiService.sendPasswordResetOtp({ destination: dest, method: forgotMethod });
+      setForgotStep('verify');
+      if (res.otpDemo) {
+        setDemoOtpCode(res.otpDemo);
+      }
+      setResendCooldown(60);
+      setForgotSuccess(res.message || `Verification code sent to ${dest}`);
+    } catch (err) {
+      const msg = (err.message || '').replace(/<[^>]*>?/gm, '');
+      setForgotError(msg || 'Failed to send verification code. Please check destination details.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    if (e) e.preventDefault();
+    if (!forgotOtp || forgotOtp.trim().length < 4) {
+      setForgotError('Please enter the 6-digit OTP code received.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      setForgotError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setForgotError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError(null);
+
+    try {
+      const res = await apiService.verifyAndResetPassword({
+        destination: forgotDestination.trim(),
+        method: forgotMethod,
+        otp: forgotOtp.trim(),
+        newPassword
+      });
+
+      setSuccessMsg(res.message || 'Password reset successfully! Please log in with your new password.');
+      setIdentifier(forgotDestination.trim());
+      setPassword(newPassword);
+      setIsForgotPasswordOpen(false);
+    } catch (err) {
+      const msg = (err.message || '').replace(/<[^>]*>?/gm, '');
+      setForgotError(msg || 'Failed to reset password. Please check the OTP code.');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -677,9 +791,24 @@ export default function LoginPage({
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                {t.passwordLabel || 'Password'}
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  {t.passwordLabel || 'Password'}
+                </label>
+                {!isRegister && (
+                  <button
+                    type="button"
+                    onClick={handleOpenForgotPassword}
+                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline transition-colors"
+                  >
+                    {currentLang === 'te' 
+                      ? 'పాస్‌వర్డ్ మర్చిపోయారా?' 
+                      : currentLang === 'hi'
+                      ? 'पासवर्ड भूल गए?'
+                      : 'Forgot Password?'}
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -725,6 +854,307 @@ export default function LoginPage({
 
       </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {isForgotPasswordOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-5 text-slate-900">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <KeyRound className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {currentLang === 'te' 
+                      ? 'పాస్‌వర్డ్ రీసెట్ (Forgot Password)' 
+                      : currentLang === 'hi' 
+                      ? 'पासवर्ड रीसेट करें' 
+                      : 'Reset Account Password'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {currentLang === 'te' 
+                      ? 'మొబైల్ లేదా ఈమెయిల్ ధృవీకరణ ద్వారా పాస్‌వర్డ్ పొందండి' 
+                      : 'Verify via Mobile SMS or Email OTP'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsForgotPasswordOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Error or Success notification */}
+            {forgotError && (
+              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {forgotSuccess && (
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
+
+            {/* STEP 1: Select Method & Destination */}
+            {forgotStep === 'request' ? (
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                    {currentLang === 'te' ? 'ధృవీకరణ మాధ్యమం ఎంచుకోండి:' : 'Select Verification Channel:'}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMethod('mobile'); setForgotError(null); }}
+                      className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
+                        forgotMethod === 'mobile'
+                          ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        forgotMethod === 'mobile' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900">
+                          {currentLang === 'te' ? 'మొబైల్ SMS' : 'Mobile (SMS)'}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {currentLang === 'te' ? 'OTP సందేశం' : '6-Digit OTP'}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMethod('email'); setForgotError(null); }}
+                      className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all ${
+                        forgotMethod === 'email'
+                          ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        forgotMethod === 'email' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900">
+                          {currentLang === 'te' ? 'ఈమెయిల్' : 'Email Address'}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {currentLang === 'te' ? 'OTP మెయిల్' : 'Email OTP'}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {forgotMethod === 'mobile'
+                      ? (currentLang === 'te' ? 'రిజిస్టర్డ్ మొబైల్ నంబర్ (Mobile Number)' : 'Registered Mobile Number')
+                      : (currentLang === 'te' ? 'రిజిస్టర్డ్ ఈమెయిల్ అడ్రస్ (Email Address)' : 'Registered Email Address')}
+                  </label>
+                  <div className="relative">
+                    {forgotMethod === 'mobile' ? (
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    ) : (
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    )}
+                    <input
+                      type={forgotMethod === 'mobile' ? 'tel' : 'email'}
+                      required
+                      value={forgotDestination}
+                      onChange={(e) => setForgotDestination(e.target.value)}
+                      placeholder={
+                        forgotMethod === 'mobile' 
+                          ? "e.g. 9392705998 or 9848012345" 
+                          : "e.g. kandulatejachowdary@gmail.com"
+                      }
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPasswordOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-[2] py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending Code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>
+                          {currentLang === 'te' ? 'OTP కోడ్ పంపండి' : 'Send Verification OTP'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* STEP 2: Verify OTP & Set New Password */
+              <form onSubmit={handleResetPassword} className="space-y-3.5">
+                <div className="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs text-slate-700 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 block">
+                      Verification Sent To
+                    </span>
+                    <span className="font-mono font-bold text-slate-900">{forgotDestination}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setForgotStep('request'); setForgotOtp(''); }}
+                    className="text-[11px] font-bold text-emerald-700 hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {demoOtpCode && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-center justify-between">
+                    <span>🔑 Verification Code: <strong>{demoOtpCode}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setForgotOtp(demoOtpCode)}
+                      className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-bold text-[10px] hover:bg-amber-300 transition-colors"
+                    >
+                      Auto-Fill
+                    </button>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {currentLang === 'te' ? '6-అంకెల OTP కోడ్ నమోదు చేయండి' : 'Enter 6-Digit OTP Code'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••"
+                    className="w-full text-center tracking-[0.5em] font-mono font-bold text-base py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <div className="flex justify-between items-center text-[10px] text-slate-500 mt-1 px-1">
+                    <span>Valid for 10 minutes</span>
+                    {resendCooldown > 0 ? (
+                      <span>Resend in {resendCooldown}s</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        className="font-bold text-emerald-700 hover:underline"
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {currentLang === 'te' ? 'కొత్త పాస్‌వర్డ్ (New Password)' : 'New Password (min 6 characters)'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {currentLang === 'te' ? 'కొత్త పాస్‌వర్డ్‌ని నిర్ధారించండి' : 'Confirm New Password'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setForgotStep('request'); }}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-[2] py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Updating Password...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Reset &amp; Save Password</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
 
       <div className="text-center text-[11px] text-slate-500 pt-4 relative z-10">
         Smart India Hackathon • Aakash AI Hyper-Local Downscaled Weather Sentinel • Andhra Pradesh
