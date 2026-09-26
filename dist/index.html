@@ -12,6 +12,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       window.addEventListener('error', function(e) {
+        // If React application has already mounted and rendered into #root, suppress full-screen alert
+        var root = document.getElementById('root');
+        if (root && root.children && root.children.length > 0) {
+          console.warn('[Runtime non-fatal error caught]:', e.message || e);
+          return;
+        }
         console.error('[GLOBAL BOOT ERROR]', e);
         var el = document.getElementById('global-boot-error');
         if (!el) {
@@ -23,7 +29,7 @@
         }
       });
     </script>
-    <script type="module" crossorigin src="./assets/index-Bo5Wu9Ee.js"></script>
+    <script type="module" crossorigin src="./assets/index-YQK4R5bk.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-P7htwIg9.css">
   </head>
   <body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">

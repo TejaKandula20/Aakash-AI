@@ -34,6 +34,16 @@ export default function PanchayatMap({
   const mapInstanceRef = useRef(null);
   const tileLayerRef = useRef(null);
   const layersGroupRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  const safeInvalidateSize = (map) => {
+    if (!isMountedRef.current || !map || !map._container || !map._mapPane) return;
+    try {
+      map.invalidateSize({ pan: false });
+    } catch (e) {
+      console.warn("Leaflet invalidateSize suppressed safely:", e);
+    }
+  };
 
   const current = weatherData?.current || {
     temp: 31,
@@ -111,9 +121,11 @@ export default function PanchayatMap({
         layersGroupRef.current = L.layerGroup().addTo(map);
         mapInstanceRef.current = map;
 
-        // Force proper dimensions calculation
+        // Force proper dimensions calculation safely
         setTimeout(() => {
-          map.invalidateSize();
+          if (isMountedRef.current && mapInstanceRef.current) {
+            safeInvalidateSize(mapInstanceRef.current);
+          }
         }, 200);
       } else {
         // Pan & zoom to updated panchayat
@@ -192,7 +204,9 @@ export default function PanchayatMap({
 
   // Clean up Leaflet on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (mapInstanceRef.current) {
         try {
           mapInstanceRef.current.remove();
@@ -235,7 +249,11 @@ export default function PanchayatMap({
             <button
               onClick={() => {
                 setViewMode('leaflet');
-                setTimeout(() => mapInstanceRef.current?.invalidateSize(), 150);
+                setTimeout(() => {
+                  if (isMountedRef.current && mapInstanceRef.current) {
+                    safeInvalidateSize(mapInstanceRef.current);
+                  }
+                }, 150);
               }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-xl font-bold transition-all ${
                 viewMode === 'leaflet'
