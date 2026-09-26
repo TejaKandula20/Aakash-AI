@@ -192,6 +192,34 @@ export function initDatabase() {
     console.log('[DB] Seeded User: msuchitra954@gmail.com / suchitra@9999');
   }
 
+  // 2B. Seed User: prasanna (phone: 9392705998) / prasanna@9999
+  const checkPrasanna = db.prepare('SELECT id FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? OR phone_number LIKE ?').all('9392705998@aakash.gov.in', 'prasanna', '%9392705998%');
+  if (checkPrasanna.length === 0) {
+    const userPass = hashPassword('prasanna@9999');
+    const now = getCurrentTimestampIST();
+    db.prepare(`
+      INSERT INTO users (
+        email, username, password_hash, salt, role,
+        assigned_panchayat_id, assigned_panchayat_name, assigned_district, assigned_mandal,
+        phone_number, preferred_language, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      '9392705998@aakash.gov.in',
+      'prasanna',
+      userPass.hash,
+      userPass.salt,
+      'user',
+      'ap-pld-narasaraopet-1',
+      'నరసరావుపేట గ్రామ పంచాయతీ',
+      'Palnadu',
+      'Narasaraopet',
+      '9392705998',
+      'te',
+      now
+    );
+    console.log('[DB] Seeded User: prasanna (9392705998) / prasanna@9999');
+  }
+
   // 3. Seed Panchayats table
   const checkPanchayats = db.prepare('SELECT count(*) as count FROM panchayats').all();
   if (checkPanchayats[0].count === 0) {

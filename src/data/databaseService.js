@@ -198,6 +198,25 @@ const INITIAL_FARMERS = [
     lastAlertAt: null,
     lastAlertType: null,
     lastAlertStatus: null
+  },
+  {
+    id: 11,
+    name: 'prasanna',
+    phone: '9392705998',
+    maskedPhone: '+91 93927 •••••',
+    district: 'Palnadu',
+    mandal: 'Narasaraopet',
+    panchayatId: 'ap-pld-narasaraopet-1',
+    panchayatName: 'నరసరావుపేట గ్రామ పంచాయతీ',
+    primaryCrop: 'Paddy',
+    landAcres: 2.5,
+    language: 'te',
+    alertPreference: 'Both',
+    isActive: true,
+    registeredAt: '2026-09-25T19:19:03+05:30',
+    lastAlertAt: '2026-09-25T20:11:38+05:30',
+    lastAlertType: 'waterlogging',
+    lastAlertStatus: 'DELIVERED'
   }
 ];
 
@@ -243,14 +262,28 @@ class DatabaseService {
       const saved = localStorage.getItem(FARMERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed.filter(p => p.district?.toLowerCase() === 'palnadu').length >= 366) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge with initial seeded farmers so registered ones (like prasanna) are never lost
+          const existingPhones = new Set(
+            parsed.map(f => (f.phone || '').replace(/\D/g, '').slice(-10))
+          );
+          const missingSeeded = INITIAL_FARMERS.filter(
+            f => !existingPhones.has((f.phone || '').replace(/\D/g, '').slice(-10))
+          );
+          if (missingSeeded.length > 0) {
+            const merged = [...parsed, ...missingSeeded];
+            try {
+              localStorage.setItem(FARMERS_STORAGE_KEY, JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          }
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Could not load farmers from localStorage:', e);
     }
-    // Seed initial farmers
+    // Seed initial farmers if no cache exists
     try {
       localStorage.setItem(FARMERS_STORAGE_KEY, JSON.stringify(INITIAL_FARMERS));
     } catch (e) {}

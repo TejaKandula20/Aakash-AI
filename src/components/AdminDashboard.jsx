@@ -8,6 +8,7 @@ import {
 import { apiService } from '../utils/apiService';
 import { databaseService } from '../data/databaseService';
 import { notificationService } from '../utils/notificationService';
+import { getAssetUrl } from '../utils/assetHelper';
 import { getAllDistricts, getMandalsByDistrict, PANCHAYATS_DATA } from '../data/panchayats';
 
 export default function AdminDashboard({
@@ -353,13 +354,13 @@ export default function AdminDashboard({
       
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-slate-950 via-indigo-950 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-500/30 relative overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" style={{ backgroundImage: 'url(/assets/images/hero-landscape.jpg)' }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none mix-blend-overlay" style={{ backgroundImage: `url(${getAssetUrl('/assets/images/hero-landscape.jpg')})` }} />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4">
             <img 
-              src="/assets/images/aakash-crest.svg" 
+              src={getAssetUrl('/assets/images/aakash-crest.svg')} 
               alt="Aakash AI" 
               className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 drop-shadow-xl hover:scale-105 transition-transform" 
             />

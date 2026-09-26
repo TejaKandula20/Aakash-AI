@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '../utils/apiService';
 import { databaseService } from '../data/databaseService';
+import { getAssetUrl } from '../utils/assetHelper';
 import { LANGUAGES, TRANSLATIONS } from '../data/translations';
 import { 
   getAllDistricts, 
@@ -245,7 +246,7 @@ export default function LoginPage({
       {/* Atmospheric Background with Photo Texture */}
       <div 
         className="fixed inset-0 bg-cover bg-center pointer-events-none opacity-20 mix-blend-luminosity filter saturate-150" 
-        style={{ backgroundImage: 'url(/assets/images/hero-landscape.jpg)' }} 
+        style={{ backgroundImage: `url(${getAssetUrl('/assets/images/hero-landscape.jpg')})` }} 
       />
       <div className="fixed inset-0 bg-gradient-to-tr from-slate-950 via-emerald-950/85 to-slate-950 pointer-events-none" />
       <div className="fixed inset-0 agro-mesh-bg opacity-30 pointer-events-none" />
@@ -254,7 +255,7 @@ export default function LoginPage({
       <div className="flex items-center justify-between max-w-6xl w-full mx-auto pb-4 border-b border-emerald-900/40 relative z-10">
         <div className="flex items-center gap-3">
           <img 
-            src="/assets/images/aakash-crest.svg" 
+            src={getAssetUrl('/assets/images/aakash-crest.svg')} 
             alt="Aakash AI Crest" 
             className="w-10 h-10 sm:w-11 sm:h-11 drop-shadow-md hover:scale-105 transition-transform" 
           />
@@ -301,7 +302,7 @@ export default function LoginPage({
           {/* Hero Visual Card */}
           <div className="relative rounded-3xl overflow-hidden border border-emerald-500/30 shadow-2xl group">
             <img 
-              src="/assets/images/hero-landscape.jpg" 
+              src={getAssetUrl('/assets/images/hero-landscape.jpg')} 
               alt="Andhra Pradesh Agricultural Landscape" 
               className="w-full h-56 object-cover transform group-hover:scale-105 transition-transform duration-700" 
             />
@@ -659,12 +660,19 @@ export default function LoginPage({
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder={
                     isRegister 
-                      ? "e.g. rameshreddy" 
-                      : (loginRole === 'admin' ? "kandulatejachowdary@gmail.com" : "suchitra")
+                      ? "e.g. rameshreddy or 9848012345" 
+                      : (loginRole === 'admin' ? "kandulatejachowdary@gmail.com" : "suchitra or 9392705998")
                   }
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
+              {!isRegister && (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  💡 {currentLang === 'te' 
+                    ? 'మీ రిజిస్టర్డ్ మొబైల్ నంబర్ (ఉదా. 9392705998) లేదా యూజర్‌నేమ్‌తో లాగిన్ అవ్వవచ్చు.' 
+                    : 'You can log in with your registered mobile number (e.g. 9392705998) or username.'}
+                </p>
+              )}
             </div>
 
             {/* Password */}

@@ -7,6 +7,7 @@ export default function UserDailyAlertCard({
   dailyAlertStatus,
   onOpenCallHUD,
   onTestAutomatedAlert,
+  registeredPhone,
   currentLang = 'en',
   t = {}
 }) {
@@ -28,13 +29,19 @@ export default function UserDailyAlertCard({
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                 {t.dailyAlertSentinel || 'Daily Emergency Alert Sentinel'}
               </span>
               <span className="text-[10px] font-bold text-slate-500 font-mono">
                 {todayDate} (IST)
               </span>
+              {registeredPhone && (
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 flex items-center gap-1 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  📱 {registeredPhone}
+                </span>
+              )}
             </div>
 
             <h3 className="text-base sm:text-lg font-black text-slate-900 mt-1">

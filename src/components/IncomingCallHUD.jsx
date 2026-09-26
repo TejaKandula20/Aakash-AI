@@ -13,6 +13,7 @@ export default function IncomingCallHUD({
   currentLang = 'en',
   alertId = 'waterlogging',
   alertType,
+  recipientPhone,
   onOpenAlertSimulator
 }) {
   const activePanchayat = selectedPanchayat || panchayat || { name: 'Maredumilli', localName: 'మారేడుమిల్లి', district: 'Alluri Sitharama Raju' };
@@ -191,6 +192,12 @@ export default function IncomingCallHUD({
             <p className="text-[11px] text-emerald-400 font-mono">
               IMD Automated Vernacular Broadcast • Toll-Free 1800-AAKASH
             </p>
+            {recipientPhone && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold shadow-inner">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{isTelugu ? 'డయల్ చేసిన నంబర్' : 'Dialed Mobile'}: {recipientPhone}</span>
+              </div>
+            )}
           </div>
 
           {/* Hazard Description Banner */}

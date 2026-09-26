@@ -223,7 +223,17 @@ export default function App() {
 
       const triggerServerDaily = async () => {
         try {
-          // Dispatch risk alert to ALL registered farmers in this panchayat in the local database
+          // Look up user's registered phone number
+          const targetPhone = currentUser?.phoneNumber || currentUser?.phone || '9392705998';
+
+          // 1. Dispatch emergency alert directly to registered farmer's mobile number
+          apiService.sendManualPhoneAlert(
+            targetPhone,
+            riskType,
+            `Autonomous micro-climate alert for ${registeredPanchayat.name} (Rain: ${rain}mm, Soil: ${soil}%, Temp: ${temp}°C)`
+          ).catch((e) => console.warn('Automated phone dispatch note:', e));
+
+          // 2. Dispatch risk alert to ALL registered farmers in this panchayat in the local database
           const targetFarmerCount = databaseService.getFarmersCountByPanchayat(registeredPanchayat.id);
           databaseService.dispatchPanchayatRiskAlert(
             registeredPanchayat.id,
@@ -232,7 +242,8 @@ export default function App() {
           );
 
           const res = await apiService.triggerDailyAlert({
-            panchayatId: registeredPanchayat.id, panchayatName: registeredPanchayat.localName || registeredPanchayat.name,
+            panchayatId: registeredPanchayat.id, 
+            panchayatName: registeredPanchayat.localName || registeredPanchayat.name,
             riskType,
             riskLevel: 'CRITICAL',
             triggerReason: `Autonomous sensor threshold reached (Rain: ${rain}mm, Soil: ${soil}%, Temp: ${temp}°C)`,
@@ -247,6 +258,13 @@ export default function App() {
             todayDate: res.record?.date_str
           });
           localStorage.setItem(localKey, 'executed');
+
+          // Send desktop system notification to registered phone holder
+          notificationService.sendSystemNotification({
+            title: `🚨 Emergency Alert Dispatched to ${targetPhone}`,
+            body: `Hazard condition detected in ${registeredPanchayat.name}. Voice advisory call ringing.`,
+            tag: `auto-alert-${registeredPanchayat.id}`
+          });
 
           // Open incoming call HUD with ringing audio
           setActiveAlertTrigger(riskType);
@@ -269,6 +287,66 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [weatherData?.current, selectedPanchayat.id, dailyAlertStatus?.alreadyExecutedToday, currentUser]);
+
+  const handleTestAutomatedAlert = async () => {
+    const targetPanchayat = registeredPanchayat || selectedPanchayat;
+    const regWeather = getWeatherDataForPanchayat(targetPanchayat);
+    const riskType = regWeather?.current?.alertTriggerType || 'waterlogging';
+    const targetPhone = currentUser?.phoneNumber || currentUser?.phone || '9392705998';
+
+    // 1. Dispatch emergency alert directly to registered farmer's mobile
+    try {
+      await apiService.sendManualPhoneAlert(
+        targetPhone,
+        riskType,
+        `Automated Emergency Weather Alert for ${targetPanchayat.localName || targetPanchayat.name}`
+      );
+    } catch (e) {
+      console.warn('Manual phone alert dispatch warning:', e);
+    }
+
+    // 2. Dispatch risk alert to all registered farmers in this panchayat
+    databaseService.dispatchPanchayatRiskAlert(
+      targetPanchayat.id,
+      riskType,
+      'Automated Weather Sentinel Test'
+    );
+
+    // 3. Update server record
+    try {
+      const res = await apiService.triggerDailyAlert({
+        panchayatId: targetPanchayat.id,
+        panchayatName: targetPanchayat.localName || targetPanchayat.name,
+        riskType,
+        riskLevel: 'CRITICAL',
+        triggerReason: 'Automated Emergency Weather Advisory Test',
+        channel: 'VOICE_CALL',
+        recipientCount: 1
+      });
+      setDailyAlertStatus({
+        alreadyExecutedToday: true,
+        record: res.record,
+        todayDate: res.record?.date_str
+      });
+    } catch (e) {
+      setDailyAlertStatus({
+        alreadyExecutedToday: true,
+        record: { panchayat_name: targetPanchayat.name, date_str: new Date().toISOString().slice(0, 10) },
+        todayDate: new Date().toISOString().slice(0, 10)
+      });
+    }
+
+    // 4. Send desktop system notification
+    notificationService.sendSystemNotification({
+      title: `🚨 Automated Alert to ${targetPhone}`,
+      body: `Emergency call initiated for ${targetPanchayat.localName || targetPanchayat.name}. Answer call now.`,
+      tag: `test-alert-${Date.now()}`
+    });
+
+    // 5. Open incoming call HUD with ringing audio and Indic speech
+    setActiveAlertTrigger(riskType);
+    setIsIncomingCallOpen(true);
+  };
 
   const handleManualRefresh = () => {
     setIsRefreshing(true);
@@ -364,7 +442,9 @@ export default function App() {
               panchayatName={registeredPanchayat?.localName || registeredPanchayat?.name || 'Maredumilli'}
               todayDate={dailyAlertStatus?.todayDate || new Date().toISOString().slice(0, 10)}
               dailyAlertStatus={dailyAlertStatus}
+              registeredPhone={currentUser?.phoneNumber || currentUser?.phone || '9392705998'}
               onOpenCallHUD={() => handleTriggerAlert(weatherData?.current?.alertTriggerType || 'waterlogging')}
+              onTestAutomatedAlert={handleTestAutomatedAlert}
               currentLang={currentLang}
               t={t}
             />
@@ -524,6 +604,7 @@ export default function App() {
         panchayat={registeredPanchayat}
         weatherData={weatherData}
         alertType={activeAlertTrigger}
+        recipientPhone={currentUser?.phoneNumber || currentUser?.phone || '9392705998'}
         currentLang={currentLang}
         t={t}
       />

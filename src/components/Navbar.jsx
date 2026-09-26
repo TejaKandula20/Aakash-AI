@@ -1,6 +1,7 @@
 import React from 'react';
 import { CloudRain, Mic, Bell, Cpu, Globe, PhoneCall, LogIn, LogOut, User, ShieldAlert, LayoutDashboard } from 'lucide-react';
 import { LANGUAGES } from '../data/translations';
+import { getAssetUrl } from '../utils/assetHelper';
 
 export default function Navbar({
   currentLang,
@@ -26,7 +27,7 @@ export default function Navbar({
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <img 
-              src="/assets/images/aakash-crest.svg" 
+              src={getAssetUrl('/assets/images/aakash-crest.svg')} 
               alt="Aakash AI" 
               className="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md hover:scale-105 transition-transform cursor-pointer" 
             />

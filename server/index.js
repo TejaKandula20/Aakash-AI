@@ -49,11 +49,14 @@ app.post('/api/auth/login', (req, res) => {
     }
 
     const trimmed = (email || '').trim().toLowerCase();
-    const users = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?').all(trimmed, trimmed);
+    const digits = trimmed.replace(/\D/g, '');
+    const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+
+    let users = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? OR phone_number LIKE ?').all(trimmed, trimmed, `%${last10}%`);
 
     if (users.length === 0) {
-      logAudit(null, trimmedEmail, 'unknown', 'LOGIN_FAILED', 'User not found', req.ip);
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      logAudit(null, trimmed, 'unknown', 'LOGIN_FAILED', 'User not found', req.ip);
+      return res.status(401).json({ error: 'Invalid email, phone number, or password.' });
     }
 
     const user = users[0];
